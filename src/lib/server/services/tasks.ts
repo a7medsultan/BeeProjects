@@ -641,6 +641,118 @@ export function updateTask(
 	return changes;
 }
 
+export interface TaskQueryOptions {
+	where: string;
+	params?: Record<string, string | number>;
+	orderBy?: string;
+	limit?: number;
+}
+
+export function queryTasks(
+	db: Database.Database,
+	viewer: PublicUser,
+	options: TaskQueryOptions
+): TaskListItem[] {
+	const today = localDateISO(viewer.timezone);
+	const sql = `${TASK_SELECT} AND (${options.where})
+		ORDER BY ${options.orderBy ?? 't.created_at DESC'}
+		${options.limit ? 'LIMIT @limit' : ''}`;
+
+	const rows = db.prepare(sql).all({
+		...(options.params ?? {}),
+		today,
+		...(options.limit ? { limit: options.limit } : {})
+	}) as TaskRow[];
+
+	return attachAssignees(db, rows.map(mapTask));
+}
+
+export function listBoardTasks(
+	db: Database.Database,
+	projectId: string,
+	viewer: PublicUser
+): TaskListItem[] {
+	return queryTasks(db, viewer, {
+		where: 't.project_id = @projectId AND t.parent_task_id IS NULL',
+		params: { projectId },
+		orderBy: `CASE t.priority
+			WHEN 'Urgent' THEN 4 WHEN 'High' THEN 3 WHEN 'Medium' THEN 2 ELSE 1 END DESC,
+			(t.due_date IS NULL) ASC, t.due_date ASC, t.created_at ASC`
+	});
+}
+
+export function listMyTasks(
+	db: Database.Database,
+	viewer: PublicUser,
+	includeCompleted: boolean
+): TaskListItem[] {
+	const conditions = [
+		'EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = @userId)',
+		"p.status <> 'Archived'"
+	];
+
+	if (!includeCompleted) {
+		conditions.push("t.status <> 'Done'");
+	}
+
+	return queryTasks(db, viewer, {
+		where: conditions.join(' AND '),
+		params: { userId: viewer.id },
+		orderBy: `CASE t.status
+			WHEN 'In Progress' THEN 1 WHEN 'Review' THEN 2 WHEN 'To Do' THEN 3
+			WHEN 'Backlog' THEN 4 ELSE 5 END ASC,
+			(t.due_date IS NULL) ASC, t.due_date ASC,
+			CASE t.priority WHEN 'Urgent' THEN 4 WHEN 'High' THEN 3
+			WHEN 'Medium' THEN 2 ELSE 1 END DESC,
+			t.created_at ASC`
+	});
+}
+
+export function moveTaskStatus(
+	db: Database.Database,
+	taskId: string,
+	status: TaskStatus,
+	actor: PublicUser
+): { projectId: string; status: TaskStatus; completedAt: string | null } | null {
+	const existing = getRawTask(db, taskId);
+
+	if (!existing) return null;
+
+	if (existing.status === status) {
+		return {
+			projectId: existing.project_id,
+			status,
+			completedAt: existing.completed_at
+		};
+	}
+
+	const now = new Date().toISOString();
+	const completedAt = status === 'Done' ? now : null;
+
+	db.transaction(() => {
+		db.prepare(
+			`UPDATE tasks
+			 SET status = ?, completed_at = ?, updated_at = ?
+			 WHERE id = ?`
+		).run(status, completedAt, now, taskId);
+
+		logActivity(db, {
+			entityType: 'task',
+			entityId: taskId,
+			actorId: actor.id,
+			action: 'task.status_changed',
+			oldValue: existing.status,
+			newValue: status
+		});
+	})();
+
+	return {
+		projectId: existing.project_id,
+		status,
+		completedAt
+	};
+}
+
 export function deleteTask(
 	db: Database.Database,
 	taskId: string,

@@ -129,3 +129,28 @@ export interface TaskPermissions {
 	canCreateSubtask: boolean;
 	isAssignee: boolean;
 }
+
+export interface DashboardStats {
+	activeProjects: number;
+	openTasks: number;
+	completedTasks: number;
+	overdueTasks: number;
+	dueToday: number;
+}
+
+export interface DashboardMyWork {
+	assigned: TaskListItem[];
+	overdue: TaskListItem[];
+	upcoming: TaskListItem[];
+	recentlyUpdated: TaskListItem[];
+	assignedCount: number;
+	overdueCount: number;
+	upcomingCount: number;
+}
+
+export interface DashboardData {
+	stats: DashboardStats;
+	myWork: DashboardMyWork;
+	projects: ProjectSummary[];
+	projectTotal: number;
+}

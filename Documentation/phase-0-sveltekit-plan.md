@@ -1,10 +1,10 @@
 # BeeProjects — Phase 0 Implementation Plan (Full-Stack SvelteKit)
 
 - **Source spec:** `Documentation/specs.md`
-- **Status:** In implementation — M3 complete
+- **Status:** In implementation — M4 complete
 - **Architecture:** One full-stack SvelteKit 3 app, SSR, Node adapter, SQLite
 - **Target:** All Phase 0 completion criteria (spec §7), no out-of-scope features
-- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling).
+- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling). M4 delivered (Kanban board, My Tasks, dashboard statistics, My Work, recent updates, project overview).
 
 ---
 
@@ -607,11 +607,24 @@ Create/edit flows are dedicated pages, not modals — simpler progressive enhanc
 - Multiple assignees use checkbox groups; the server validates active project membership and retains existing assignees when editing.
 - Members can edit fields/status/dates on tasks assigned to them, but assignee changes and deletion are manager-only.
 - One level of subtasks; the parent must be a top-level task in the same project. Deleting a parent soft-deletes its subtasks.
-- The List view shows top-level tasks and subtasks; Kanban will show top-level tasks only.
+- The List view shows top-level tasks and subtasks; Kanban shows top-level tasks only.
 - List filters: search, status, priority, assignee, due (`overdue`, `today`, `next 7 days`), sort by created date/due date/priority, direction, 20 per page.
 - Overdue is calculated using the viewer's timezone; completion timestamps are maintained automatically.
 - Task activity uses the same `activities` table and appears in both the task timeline and the project activity page.
 - Core files: `services/tasks.ts`, `schemas/tasks.ts`, `tasks/[id]/`, and `projects/[id]/tasks/new/`.
+
+### M4 implementation notes
+
+- The board uses `dragHandleZone` + `dragHandle`, so only the grip handle starts a drag and links/status menus remain clickable. Keyboard drag is supported by the library.
+- Each card also has a status `<select>` fallback for keyboard/touch users and for environments where drag fails.
+- Board moves call the board page `?/move` form action via `fetch` + `deserialize`. The UI updates optimistically, then calls `refreshAll()`; failures show a toast and restore server state.
+- The server enforces the same move permission as the task editor: managers can move any task, member-assignees only their own, and archived projects are read-only.
+- Board columns show top-level tasks only, sorted by priority then due date, with subtask completion badges.
+- My Tasks defaults to open tasks, supports `?includeCompleted=1`, and excludes archived projects.
+- Dashboard counts and My Work are viewer-scoped (Admin sees all; others see owned/member projects). Deadlines use the viewer's timezone.
+- Dashboard limits: My Work lists 5 items each, recently updated = last 7 days, project overview = 6 projects with a total count.
+- `TaskMiniCard.svelte` is shared by My Tasks, dashboard sections, and recent updates.
+- Core files: `services/dashboard.ts`, `services/tasks.ts` (`queryTasks`, `listMyTasks`, `listBoardTasks`, `moveTaskStatus`), `projects/[id]/board/`, `my-tasks/`, and `(app)/+page.server.ts`.
 
 ---
 
@@ -1028,7 +1041,7 @@ Backups must include uploads; DB-only backups are incomplete.
 | M1 ✅ | Sessions, login/logout, rate limit, password change/reset, admin user pages, guards, last-admin protection | Spec §7.1; deactivated users blocked; sessions revoked; temp-password flow enforced | Done |
 | M2 ✅ | Projects/members, project layout/tabs, archive, owner reassignment, activity foundation | Spec §7.2–7.3; ownership and member guards enforced; project filters/pagination; activity timeline | Done |
 | M3 ✅ | Tasks, assignees, subtasks, activity, List view with search/filter/sort/pagination, task detail | Spec §7.4–7.5, §7.9 (task events); member-assignee edit rules; soft-delete cascade | Done |
-| M4 | Kanban DnD action, My Tasks, dashboard, progress calculation | Spec §7.6–7.7, §7.11 | 3d |
+| M4 ✅ | Kanban DnD action, My Tasks, dashboard, progress calculation | Spec §7.6–7.7, §7.11; top-level board; member move rules; viewer-scoped stats | Done |
 | M5 | Comments/mentions, attachments, comment/file activity integration | Spec §7.8–7.9 | 2d |
 | M6 | Notifications UI + polling + due-soon/overdue jobs + dedupe | Spec §7.10 | 2d |
 | M7 | A11y/responsive polish, HTTP/component/E2E tests, backup script, README, acceptance pass | All §7 criteria + NFR checklist | 2.5d |

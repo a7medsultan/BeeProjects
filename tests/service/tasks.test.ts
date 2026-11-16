@@ -6,6 +6,7 @@ import { applyMigrations } from '../../src/lib/server/db/migrate-shared.ts';
 import { createUser, getUserByEmail } from '../../src/lib/server/services/users.ts';
 import {
 	addProjectMember,
+	archiveProject,
 	createProject,
 	getProjectSummary
 } from '../../src/lib/server/services/projects.ts';
@@ -17,8 +18,11 @@ import {
 	deleteTask,
 	getTaskDetail,
 	getTopLevelTaskForCreate,
+	listBoardTasks,
+	listMyTasks,
 	listProjectTasks,
 	listSubtasks,
+	moveTaskStatus,
 	TaskInputError,
 	updateTask
 } from '../../src/lib/server/services/tasks.ts';
@@ -306,6 +310,140 @@ describe('task service', () => {
 		expect(projectIdAfterDelete).toBe(projectId);
 		expect(getTaskDetail(db, parentId, admin)).toBeNull();
 		expect(getTaskDetail(db, subtaskId, admin)).toBeNull();
+
+		db.close();
+	});
+
+	it('lists board tasks without subtasks and moves status with completion timestamps', async () => {
+		const { db, admin, projectId } = await setup();
+
+		const parentId = createTask(
+			db,
+			projectId,
+			{
+				title: 'Board parent',
+				description: '',
+				priority: 'High',
+				status: 'To Do',
+				startDate: '',
+				dueDate: '',
+				assigneeIds: []
+			},
+			admin
+		);
+		createTask(
+			db,
+			projectId,
+			{
+				title: 'Board subtask',
+				description: '',
+				priority: 'Low',
+				status: 'In Progress',
+				startDate: '',
+				dueDate: '',
+				assigneeIds: [],
+				parentTaskId: parentId
+			},
+			admin
+		);
+
+		const boardTasks = listBoardTasks(db, projectId, admin);
+		expect(boardTasks.map((task) => task.id)).toEqual([parentId]);
+
+		const moved = moveTaskStatus(db, parentId, 'Done', admin);
+		expect(moved?.status).toBe('Done');
+		expect(moved?.completedAt).not.toBeNull();
+		expect(getTaskDetail(db, parentId, admin)?.task.status).toBe('Done');
+
+		const reopened = moveTaskStatus(db, parentId, 'In Progress', admin);
+		expect(reopened?.completedAt).toBeNull();
+		expect(getTaskDetail(db, parentId, admin)?.task.completedAt).toBeNull();
+
+		const activity = listTaskActivity(db, parentId, 1, 20).items;
+		expect(activity.filter((item) => item.action === 'task.status_changed')).toHaveLength(2);
+
+		db.close();
+	});
+
+	it('lists my tasks and filters completed and archived projects', async () => {
+		const { db, admin, member, projectId } = await setup();
+
+		createTask(
+			db,
+			projectId,
+			{
+				title: 'My open task',
+				description: '',
+				priority: 'High',
+				status: 'To Do',
+				startDate: '',
+				dueDate: '',
+				assigneeIds: [member.id]
+			},
+			admin
+		);
+		createTask(
+			db,
+			projectId,
+			{
+				title: 'My done task',
+				description: '',
+				priority: 'Medium',
+				status: 'Done',
+				startDate: '',
+				dueDate: '',
+				assigneeIds: [member.id]
+			},
+			admin
+		);
+		createTask(
+			db,
+			projectId,
+			{
+				title: 'Admin task',
+				description: '',
+				priority: 'Low',
+				status: 'To Do',
+				startDate: '',
+				dueDate: '',
+				assigneeIds: [admin.id]
+			},
+			admin
+		);
+
+		const openTasks = listMyTasks(db, member, false);
+		expect(openTasks.map((task) => task.title)).toEqual(['My open task']);
+
+		const allTasks = listMyTasks(db, member, true);
+		expect(allTasks.map((task) => task.title)).toEqual(
+			expect.arrayContaining(['My open task', 'My done task'])
+		);
+
+		const archivedProjectId = createProject(
+			db,
+			{ ...projectInput, name: 'Archived project' },
+			admin
+		);
+		addProjectMember(db, archivedProjectId, member.id, admin);
+		createTask(
+			db,
+			archivedProjectId,
+			{
+				title: 'Archived task',
+				description: '',
+				priority: 'Low',
+				status: 'To Do',
+				startDate: '',
+				dueDate: '',
+				assigneeIds: [member.id]
+			},
+			admin
+		);
+		archiveProject(db, archivedProjectId, admin);
+
+		expect(listMyTasks(db, member, true).some((task) => task.title === 'Archived task')).toBe(
+			false
+		);
 
 		db.close();
 	});

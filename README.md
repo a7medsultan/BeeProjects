@@ -10,7 +10,7 @@ The full implementation plan lives in
 
 ## Current status
 
-**Milestone M3 — task management, assignments, subtasks, and the List view.**
+**Milestone M4 — Kanban board, My Tasks, and dashboard aggregation.**
 
 - SvelteKit 3 + adapter-node scaffold
 - Tailwind 4 + shadcn-svelte-compatible setup (`components.json`, `cn` helper)
@@ -31,14 +31,15 @@ The full implementation plan lives in
 - One-level subtasks with parent validation
 - Task status, priority, dates, overdue indicators, and completion timestamps
 - List view with search, status/priority/assignee/due filters, sorting, and pagination
+- Kanban board with drag handles, cross-column status changes, and an accessible status menu fallback
+- My Tasks across projects, grouped by status with completed toggle and deadline highlights
+- Dashboard statistics, My Work, recently updated tasks, and project progress overview
 - Task detail page with inline editing, subtasks, and activity
 - Member-assignee edit permissions with manager-only assignment control
 - Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Next up: **M4 — Kanban board, My Tasks, and dashboard aggregation.**
-
-The dashboard remains a preview until M4.
+Next up: **M5 — comments, mentions, attachments, and collaboration.**
 
 ## Requirements
 
@@ -94,6 +95,13 @@ Change these before using the app with real data. `.env` is gitignored.
 - Overdue tasks are highlighted in the List view and task detail.
 - Task detail includes inline editing, subtasks, assignment controls, and a task activity timeline.
 - Comments and attachments are placeholders until M5.
+
+## Views and dashboard
+
+- **Kanban:** five status columns showing top-level tasks. Managers can move any task; member-assignees can move their own. Drag handles support mouse, touch, and keyboard, with a per-card status menu as a fallback. Archived projects are read-only.
+- **My Tasks:** assigned tasks across active projects, grouped by status, with a completed toggle. Overdue and due-soon tasks are highlighted; tasks in archived projects are hidden.
+- **Dashboard:** viewer-scoped active-project, open/completed/overdue/due-today counts; My Work for assigned, overdue, and upcoming tasks; recently updated tasks; and a project progress overview.
+- Dashboard deadlines use the viewer's timezone. Project and task data is scoped by Admin, project owner, or membership access.
 
 ## Scripts
 
