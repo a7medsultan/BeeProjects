@@ -62,6 +62,10 @@ export function describeActivity(item: ActivityItem): string {
 			return `${item.actorName} deleted the task`;
 		case 'task.comment_added':
 			return `${item.actorName} commented on the task`;
+		case 'task.comment_edited':
+			return `${item.actorName} edited a comment`;
+		case 'task.comment_deleted':
+			return `${item.actorName} deleted a comment`;
 		case 'task.attachment_added':
 			return `${item.actorName} attached ${formatValue(item.newValue)}`;
 		case 'task.attachment_removed':

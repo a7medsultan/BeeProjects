@@ -154,3 +154,26 @@ export interface DashboardData {
 	projects: ProjectSummary[];
 	projectTotal: number;
 }
+
+export interface CommentItem {
+	id: string;
+	taskId: string;
+	authorId: string;
+	authorName: string;
+	authorRole: RoleName;
+	body: string;
+	createdAt: string;
+	updatedAt: string;
+	isEdited: boolean;
+}
+
+export interface AttachmentItem {
+	id: string;
+	taskId: string;
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	uploadedById: string;
+	uploadedByName: string;
+	createdAt: string;
+}

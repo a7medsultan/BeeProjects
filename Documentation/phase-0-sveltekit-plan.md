@@ -1,10 +1,10 @@
 # BeeProjects — Phase 0 Implementation Plan (Full-Stack SvelteKit)
 
 - **Source spec:** `Documentation/specs.md`
-- **Status:** In implementation — M4 complete
+- **Status:** In implementation — M5 complete
 - **Architecture:** One full-stack SvelteKit 3 app, SSR, Node adapter, SQLite
 - **Target:** All Phase 0 completion criteria (spec §7), no out-of-scope features
-- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling). M4 delivered (Kanban board, My Tasks, dashboard statistics, My Work, recent updates, project overview).
+- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling). M4 delivered (Kanban board, My Tasks, dashboard statistics, My Work, recent updates, project overview). M5 delivered (comments, mentions, attachments, private downloads, collaboration activity).
 
 ---
 
@@ -626,6 +626,19 @@ Create/edit flows are dedicated pages, not modals — simpler progressive enhanc
 - `TaskMiniCard.svelte` is shared by My Tasks, dashboard sections, and recent updates.
 - Core files: `services/dashboard.ts`, `services/tasks.ts` (`queryTasks`, `listMyTasks`, `listBoardTasks`, `moveTaskStatus`), `projects/[id]/board/`, `my-tasks/`, and `(app)/+page.server.ts`.
 
+### M5 implementation notes
+
+- Comments are stored in `task_comments`, loaded chronologically, and soft-deleted.
+- Authors can edit/delete their own comments; admins and project owners can edit/delete any comment. Archived projects reject all collaboration mutations.
+- Mentions use the token format `@[Display Name](userId)`. `@` opens an active-project-member picker (max 6 suggestions) and inserts the token at the cursor.
+- The server re-parses mention IDs on comment create/update and rejects users who are not active project members. Mentions render as chips via `CommentBody.svelte`.
+- Attachments are validated by extension, declared MIME, size, and magic bytes using `file-type`. Max 10 MB; `BODY_SIZE_LIMIT=12M` is required in production.
+- Files are stored under `storage/attachments/<taskId>/` with UUID names and served only through `/attachments/[id]` after a project-access check.
+- Uploaders, project owners, and admins can delete attachments; downloads remain available to project members for archived projects.
+- Attachment deletion is a soft delete; the file remains on disk for backups/audit until manual cleanup.
+- Activity events: `task.comment_added`, `task.comment_edited`, `task.comment_deleted`, `task.attachment_added`, `task.attachment_removed`.
+- Core files: `services/comments.ts`, `services/attachments.ts`, `mentions.ts`, `schemas/collaboration.ts`, `CommentBody.svelte`, `MentionTextarea.svelte`, and the attachment download route.
+
 ---
 
 ## 10. Server Loading, Actions, and Endpoints
@@ -1042,7 +1055,7 @@ Backups must include uploads; DB-only backups are incomplete.
 | M2 ✅ | Projects/members, project layout/tabs, archive, owner reassignment, activity foundation | Spec §7.2–7.3; ownership and member guards enforced; project filters/pagination; activity timeline | Done |
 | M3 ✅ | Tasks, assignees, subtasks, activity, List view with search/filter/sort/pagination, task detail | Spec §7.4–7.5, §7.9 (task events); member-assignee edit rules; soft-delete cascade | Done |
 | M4 ✅ | Kanban DnD action, My Tasks, dashboard, progress calculation | Spec §7.6–7.7, §7.11; top-level board; member move rules; viewer-scoped stats | Done |
-| M5 | Comments/mentions, attachments, comment/file activity integration | Spec §7.8–7.9 | 2d |
+| M5 ✅ | Comments/mentions, attachments, comment/file activity integration | Spec §7.8–7.9; chronological comments; mention validation; private authenticated downloads | Done |
 | M6 | Notifications UI + polling + due-soon/overdue jobs + dedupe | Spec §7.10 | 2d |
 | M7 | A11y/responsive polish, HTTP/component/E2E tests, backup script, README, acceptance pass | All §7 criteria + NFR checklist | 2.5d |
 

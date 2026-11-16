@@ -10,7 +10,7 @@ The full implementation plan lives in
 
 ## Current status
 
-**Milestone M4 — Kanban board, My Tasks, and dashboard aggregation.**
+**Milestone M5 — comments, mentions, attachments, and collaboration.**
 
 - SvelteKit 3 + adapter-node scaffold
 - Tailwind 4 + shadcn-svelte-compatible setup (`components.json`, `cn` helper)
@@ -34,12 +34,16 @@ The full implementation plan lives in
 - Kanban board with drag handles, cross-column status changes, and an accessible status menu fallback
 - My Tasks across projects, grouped by status with completed toggle and deadline highlights
 - Dashboard statistics, My Work, recently updated tasks, and project progress overview
-- Task detail page with inline editing, subtasks, and activity
+- Task comments in chronological order with edits and soft deletes
+- `@` mention autocomplete with project-member validation and highlighted mention chips
+- Private task attachments with magic-byte validation, authenticated download, and delete controls
+- Comment and attachment activity events in task and project timelines
+- Task detail page with inline editing, subtasks, comments, attachments, and activity
 - Member-assignee edit permissions with manager-only assignment control
 - Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Next up: **M5 — comments, mentions, attachments, and collaboration.**
+Next up: **M6 — in-app notifications and deadline jobs.**
 
 ## Requirements
 
@@ -102,6 +106,14 @@ Change these before using the app with real data. `.env` is gitignored.
 - **My Tasks:** assigned tasks across active projects, grouped by status, with a completed toggle. Overdue and due-soon tasks are highlighted; tasks in archived projects are hidden.
 - **Dashboard:** viewer-scoped active-project, open/completed/overdue/due-today counts; My Work for assigned, overdue, and upcoming tasks; recently updated tasks; and a project progress overview.
 - Dashboard deadlines use the viewer's timezone. Project and task data is scoped by Admin, project owner, or membership access.
+
+## Collaboration
+
+- **Comments:** shown chronologically. Authors can edit/delete their own comments; admins and project owners can edit/delete any comment. Archived projects are read-only.
+- **Mentions:** typing `@` opens a member picker and inserts a stable token. The server validates every mentioned user as an active project member and rejects invalid mentions. Mentions render as highlighted chips.
+- **Attachments:** any project member can upload; uploader, project owner, or admin can delete. Files are limited to 10 MB, checked against an extension/MIME/magic-byte allowlist, stored privately, and served only through an authenticated download route.
+- **Limits:** keep `BODY_SIZE_LIMIT=12M` in production so the 10 MB per-file limit can be enforced by the app rather than the adapter.
+- Comment and attachment changes are recorded in the task and project activity timelines.
 
 ## Scripts
 

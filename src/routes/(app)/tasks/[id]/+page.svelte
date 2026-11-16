@@ -1,10 +1,24 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowLeft, CalendarDays, MessageSquare, Paperclip, Plus, Trash2 } from '@lucide/svelte';
+	import { enhance as kitEnhance } from '$app/forms';
+	import {
+		ArrowLeft,
+		CalendarDays,
+		MessageSquare,
+		Paperclip,
+		Pencil,
+		Plus,
+		Send,
+		Trash2,
+		X
+	} from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import ActivityTimeline from '#lib/components/activity/ActivityTimeline.svelte';
+	import CommentBody from '#lib/components/tasks/CommentBody.svelte';
+	import MentionTextarea from '#lib/components/tasks/MentionTextarea.svelte';
 	import {
+		ROLE_LABELS,
 		TASK_PRIORITIES,
 		TASK_PRIORITY_CLASSES,
 		TASK_PRIORITY_LABELS,
@@ -12,12 +26,19 @@
 		TASK_STATUS_CLASSES,
 		TASK_STATUS_LABELS
 	} from '#lib/constants.ts';
-	import { formatDate, formatDateTime } from '#lib/format.ts';
+	import { formatDate, formatDateTime, formatFileSize } from '#lib/format.ts';
+	import type { AttachmentItem, CommentItem } from '#lib/types.ts';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
-	const { form, errors, message, enhance, submitting } = superForm(
+	const {
+		form: taskForm,
+		errors,
+		message,
+		enhance,
+		submitting
+	} = superForm(
 		untrack(() => data.form),
 		{ taintedMessage: false }
 	);
@@ -33,6 +54,48 @@
 			id: data.project.id
 		})
 	);
+
+	const timezone = $derived(data.user?.timezone ?? 'UTC');
+	const commentNotice = $derived(form && 'commentNotice' in form ? form.commentNotice : undefined);
+	const commentError = $derived(form && 'commentError' in form ? form.commentError : undefined);
+	const attachmentNotice = $derived(
+		form && 'attachmentNotice' in form ? form.attachmentNotice : undefined
+	);
+	const attachmentError = $derived(
+		form && 'attachmentError' in form ? form.attachmentError : undefined
+	);
+
+	let commentBody = $state('');
+	let editingCommentId = $state<string | null>(null);
+	let editingBody = $state('');
+
+	function canManageComment(comment: CommentItem): boolean {
+		if (!data.canCollaborate) return false;
+		return (
+			data.projectPermissions.isAdmin ||
+			data.projectPermissions.isOwner ||
+			comment.authorId === data.user?.id
+		);
+	}
+
+	function canDeleteAttachment(attachment: AttachmentItem): boolean {
+		if (!data.canCollaborate) return false;
+		return (
+			data.projectPermissions.isAdmin ||
+			data.projectPermissions.isOwner ||
+			attachment.uploadedById === data.user?.id
+		);
+	}
+
+	function startEdit(comment: CommentItem): void {
+		editingCommentId = comment.id;
+		editingBody = comment.body;
+	}
+
+	function cancelEdit(): void {
+		editingCommentId = null;
+		editingBody = '';
+	}
 </script>
 
 <svelte:head>
@@ -163,7 +226,7 @@
 								id="title"
 								name="title"
 								type="text"
-								bind:value={$form.title}
+								bind:value={$taskForm.title}
 								aria-invalid={$errors.title ? 'true' : undefined}
 								class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 							/>
@@ -180,7 +243,7 @@
 								id="description"
 								name="description"
 								rows="5"
-								bind:value={$form.description}
+								bind:value={$taskForm.description}
 								class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 							></textarea>
 							{#if $errors.description}
@@ -196,7 +259,7 @@
 								<select
 									id="status"
 									name="status"
-									bind:value={$form.status}
+									bind:value={$taskForm.status}
 									class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 								>
 									{#each TASK_STATUSES as status (status)}
@@ -215,7 +278,7 @@
 								<select
 									id="priority"
 									name="priority"
-									bind:value={$form.priority}
+									bind:value={$taskForm.priority}
 									class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 								>
 									{#each TASK_PRIORITIES as priority (priority)}
@@ -235,7 +298,7 @@
 									id="startDate"
 									name="startDate"
 									type="date"
-									bind:value={$form.startDate}
+									bind:value={$taskForm.startDate}
 									class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 								/>
 								{#if $errors.startDate}
@@ -251,7 +314,7 @@
 									id="dueDate"
 									name="dueDate"
 									type="date"
-									bind:value={$form.dueDate}
+									bind:value={$taskForm.dueDate}
 									aria-invalid={$errors.dueDate ? 'true' : undefined}
 									class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 								/>
@@ -274,7 +337,7 @@
 													type="checkbox"
 													name="assigneeIds"
 													value={member.userId}
-													bind:group={$form.assigneeIds}
+													bind:group={$taskForm.assigneeIds}
 													class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
 												/>
 												<span class="min-w-0 truncate">{member.name}</span>
@@ -417,6 +480,174 @@
 			</section>
 
 			<section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+				<div class="flex items-center gap-2">
+					<MessageSquare class="h-4 w-4 text-slate-400" />
+					<h2 class="font-semibold text-slate-900">Comments</h2>
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+						{data.comments.length}
+					</span>
+				</div>
+				<p class="mt-1 text-sm text-slate-500">
+					Chronological discussion. Type <span class="font-medium text-slate-700">@</span> to mention
+					an active project member.
+				</p>
+
+				{#if commentNotice}
+					<p class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">
+						{commentNotice}
+					</p>
+				{/if}
+
+				{#if commentError}
+					<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
+						{commentError}
+					</p>
+				{/if}
+
+				{#if data.canCollaborate}
+					<form
+						method="POST"
+						action="?/addComment"
+						class="mt-4"
+						use:kitEnhance={() =>
+							async ({ result, update }) => {
+								await update();
+								if (result.type === 'success') commentBody = '';
+							}}
+					>
+						<label for="comment-body" class="sr-only">Comment</label>
+						<MentionTextarea
+							id="comment-body"
+							name="body"
+							bind:value={commentBody}
+							members={data.commentMembers}
+							placeholder="Write a comment. Type @ to mention a project member."
+							rows={3}
+						/>
+						<div class="mt-2 flex justify-end">
+							<button
+								type="submit"
+								class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+							>
+								<Send class="h-4 w-4" />
+								Comment
+							</button>
+						</div>
+					</form>
+				{:else}
+					<p class="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+						Archived projects are read-only.
+					</p>
+				{/if}
+
+				<ul class="mt-5 space-y-4">
+					{#each data.comments as comment (comment.id)}
+						<li class="rounded-lg border border-slate-200 p-4">
+							<div class="flex items-start justify-between gap-3">
+								<div class="flex items-center gap-2">
+									<div
+										class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600"
+									>
+										{comment.authorName.slice(0, 1).toUpperCase()}
+									</div>
+									<div>
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="text-sm font-medium text-slate-900">{comment.authorName}</span>
+											<span class="text-[11px] tracking-wide text-slate-400 uppercase">
+												{ROLE_LABELS[comment.authorRole]}
+											</span>
+										</div>
+										<p class="text-xs text-slate-400">
+											{formatDateTime(comment.createdAt, timezone)}
+											{#if comment.isEdited}
+												· edited
+											{/if}
+										</p>
+									</div>
+								</div>
+
+								{#if canManageComment(comment)}
+									<div class="flex items-center gap-1">
+										<button
+											type="button"
+											onclick={() => startEdit(comment)}
+											aria-label="Edit comment"
+											class="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+										>
+											<Pencil class="h-4 w-4" />
+										</button>
+										<form
+											method="POST"
+											action="?/deleteComment"
+											onsubmit={(event) => {
+												if (!confirm('Delete this comment?')) event.preventDefault();
+											}}
+										>
+											<input type="hidden" name="commentId" value={comment.id} />
+											<button
+												type="submit"
+												aria-label="Delete comment"
+												class="rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+											>
+												<Trash2 class="h-4 w-4" />
+											</button>
+										</form>
+									</div>
+								{/if}
+							</div>
+
+							{#if editingCommentId === comment.id}
+								<form
+									method="POST"
+									action="?/editComment"
+									class="mt-3"
+									use:kitEnhance={() =>
+										async ({ result, update }) => {
+											await update();
+											if (result.type === 'success') {
+												editingCommentId = null;
+												editingBody = '';
+											}
+										}}
+								>
+									<input type="hidden" name="commentId" value={comment.id} />
+									<MentionTextarea
+										id={`edit-comment-${comment.id}`}
+										name="body"
+										bind:value={editingBody}
+										members={data.commentMembers}
+										rows={3}
+									/>
+									<div class="mt-2 flex justify-end gap-2">
+										<button
+											type="button"
+											onclick={cancelEdit}
+											class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+										>
+											<X class="h-4 w-4" />
+											Cancel
+										</button>
+										<button
+											type="submit"
+											class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+										>
+											Save comment
+										</button>
+									</div>
+								</form>
+							{:else}
+								<div class="mt-3">
+									<CommentBody body={comment.body} />
+								</div>
+							{/if}
+						</li>
+					{:else}
+						<li class="py-6 text-center text-sm text-slate-500">No comments yet.</li>
+					{/each}
+				</ul>
+			</section>
+
+			<section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
 				<h2 class="font-semibold text-slate-900">Activity</h2>
 				<div class="mt-4">
 					<ActivityTimeline
@@ -430,21 +661,99 @@
 
 		<div class="space-y-6">
 			<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-				<h2 class="font-semibold text-slate-900">Collaboration</h2>
-				<div class="mt-3 space-y-3">
-					<div
-						class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600"
-					>
-						<MessageSquare class="h-4 w-4 text-slate-400" />
-						Comments arrive in M5
-					</div>
-					<div
-						class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600"
-					>
-						<Paperclip class="h-4 w-4 text-slate-400" />
-						Attachments arrive in M5
-					</div>
+				<div class="flex items-center gap-2">
+					<Paperclip class="h-4 w-4 text-slate-400" />
+					<h2 class="font-semibold text-slate-900">Attachments</h2>
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+						{data.attachments.length}
+					</span>
 				</div>
+				<p class="mt-1 text-xs leading-5 text-slate-500">
+					Private project files. Maximum 10 MB per file. Downloads require project access.
+				</p>
+
+				{#if attachmentNotice}
+					<p class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">
+						{attachmentNotice}
+					</p>
+				{/if}
+
+				{#if attachmentError}
+					<p class="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
+						{attachmentError}
+					</p>
+				{/if}
+
+				{#if data.canCollaborate}
+					<form
+						method="POST"
+						action="?/uploadAttachment"
+						enctype="multipart/form-data"
+						class="mt-3 space-y-2"
+					>
+						<label for="attachment-file" class="block text-sm font-medium text-slate-700">
+							Upload file
+						</label>
+						<input
+							id="attachment-file"
+							name="file"
+							type="file"
+							required
+							accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.webp,.gif,.zip"
+							class="block w-full text-xs text-slate-600 file:mr-2 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+						/>
+						<button
+							type="submit"
+							class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+						>
+							<Paperclip class="h-4 w-4" />
+							Upload
+						</button>
+					</form>
+				{:else}
+					<p class="mt-3 text-xs text-slate-500">Archived projects are read-only.</p>
+				{/if}
+
+				<ul class="mt-4 space-y-2">
+					{#each data.attachments as attachment (attachment.id)}
+						<li class="rounded-lg border border-slate-200 p-2.5">
+							<div class="flex items-start justify-between gap-2">
+								<div class="min-w-0">
+									<a
+										href={resolve('/attachments/[id]', { id: attachment.id })}
+										class="block truncate text-sm font-medium text-indigo-700 hover:underline"
+									>
+										{attachment.fileName}
+									</a>
+									<p class="mt-0.5 text-[11px] text-slate-500">
+										{formatFileSize(attachment.sizeBytes)} · {attachment.uploadedByName} ·
+										{formatDateTime(attachment.createdAt, timezone)}
+									</p>
+								</div>
+								{#if canDeleteAttachment(attachment)}
+									<form
+										method="POST"
+										action="?/deleteAttachment"
+										onsubmit={(event) => {
+											if (!confirm(`Delete “${attachment.fileName}”?`)) event.preventDefault();
+										}}
+									>
+										<input type="hidden" name="attachmentId" value={attachment.id} />
+										<button
+											type="submit"
+											aria-label="Delete attachment"
+											class="rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+										>
+											<Trash2 class="h-4 w-4" />
+										</button>
+									</form>
+								{/if}
+							</div>
+						</li>
+					{:else}
+						<li class="py-4 text-center text-xs text-slate-500">No attachments yet.</li>
+					{/each}
+				</ul>
 			</section>
 
 			{#if data.permissions.canDelete}
