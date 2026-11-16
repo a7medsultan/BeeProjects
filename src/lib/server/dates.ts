@@ -38,3 +38,10 @@ export function localDateISO(timezone: string, date = new Date()): string {
 		}).format(date);
 	}
 }
+
+export function addDaysISO(dateISO: string, days: number): string {
+	const date = new Date(`${dateISO}T00:00:00Z`);
+	if (Number.isNaN(date.getTime())) return dateISO;
+	date.setUTCDate(date.getUTCDate() + days);
+	return date.toISOString().slice(0, 10);
+}

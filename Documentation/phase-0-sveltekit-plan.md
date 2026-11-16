@@ -1,10 +1,10 @@
 # BeeProjects — Phase 0 Implementation Plan (Full-Stack SvelteKit)
 
 - **Source spec:** `Documentation/specs.md`
-- **Status:** In implementation — M2 complete
+- **Status:** In implementation — M3 complete
 - **Architecture:** One full-stack SvelteKit 3 app, SSR, Node adapter, SQLite
 - **Target:** All Phase 0 completion criteria (spec §7), no out-of-scope features
-- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline).
+- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling).
 
 ---
 
@@ -590,7 +590,7 @@ Create/edit flows are dedicated pages, not modals — simpler progressive enhanc
 
 ### M2 implementation notes
 
-- Project routes are a nested layout: Overview, List, Board, Members, Activity. List and Board are placeholders until M3/M4.
+- Project routes are a nested layout: Overview, List, Board, Members, Activity. List is live from M3; Board is a placeholder until M4.
 - Project list defaults to `open` status (everything except Archived), with `all` plus explicit status filters; 12 cards per page.
 - Project forms exclude `Archived` from the status select; archive/unarchive are dedicated actions on the overview page.
 - Archived projects are read-only: edit, membership changes, and task mutations are rejected server-side; unarchive restores `Planning`.
@@ -599,6 +599,19 @@ Create/edit flows are dedicated pages, not modals — simpler progressive enhanc
 - Progress = completed tasks / all non-deleted tasks (including subtasks); 0% with no tasks.
 - Project activity page aggregates project events and task events belonging to the project, 20 per page.
 - Core files: `services/projects.ts`, `services/activity.ts`, `permissions.ts`, `schemas/projects.ts`, and the `projects/[id]` route tree.
+
+### M3 implementation notes
+
+- Task creation lives at `projects/[id]/tasks/new`; create with `?parent=<id>` for a subtask.
+- Task detail is a standalone route at `/tasks/[id]` with inline editing, subtasks, and task activity.
+- Multiple assignees use checkbox groups; the server validates active project membership and retains existing assignees when editing.
+- Members can edit fields/status/dates on tasks assigned to them, but assignee changes and deletion are manager-only.
+- One level of subtasks; the parent must be a top-level task in the same project. Deleting a parent soft-deletes its subtasks.
+- The List view shows top-level tasks and subtasks; Kanban will show top-level tasks only.
+- List filters: search, status, priority, assignee, due (`overdue`, `today`, `next 7 days`), sort by created date/due date/priority, direction, 20 per page.
+- Overdue is calculated using the viewer's timezone; completion timestamps are maintained automatically.
+- Task activity uses the same `activities` table and appears in both the task timeline and the project activity page.
+- Core files: `services/tasks.ts`, `schemas/tasks.ts`, `tasks/[id]/`, and `projects/[id]/tasks/new/`.
 
 ---
 
@@ -1014,9 +1027,9 @@ Backups must include uploads; DB-only backups are incomplete.
 | M0 ✅ | Scaffold, adapter-node, Tailwind/shadcn, DB layer/migrations, `init` hook, seed, `/health`, base layout, git init + `.gitignore` | `pnpm dev` runs; migrations applied; admin seeded; health OK; check/lint/build pass | Done |
 | M1 ✅ | Sessions, login/logout, rate limit, password change/reset, admin user pages, guards, last-admin protection | Spec §7.1; deactivated users blocked; sessions revoked; temp-password flow enforced | Done |
 | M2 ✅ | Projects/members, project layout/tabs, archive, owner reassignment, activity foundation | Spec §7.2–7.3; ownership and member guards enforced; project filters/pagination; activity timeline | Done |
-| M3 | Tasks, assignees, subtasks, activity, List view with search/filter/sort/pagination, task detail | Spec §7.4–7.5, §7.9 (task events) | 3d |
+| M3 ✅ | Tasks, assignees, subtasks, activity, List view with search/filter/sort/pagination, task detail | Spec §7.4–7.5, §7.9 (task events); member-assignee edit rules; soft-delete cascade | Done |
 | M4 | Kanban DnD action, My Tasks, dashboard, progress calculation | Spec §7.6–7.7, §7.11 | 3d |
-| M5 | Comments/mentions, attachments, activity timeline UI | Spec §7.8–7.9 | 2d |
+| M5 | Comments/mentions, attachments, comment/file activity integration | Spec §7.8–7.9 | 2d |
 | M6 | Notifications UI + polling + due-soon/overdue jobs + dedupe | Spec §7.10 | 2d |
 | M7 | A11y/responsive polish, HTTP/component/E2E tests, backup script, README, acceptance pass | All §7 criteria + NFR checklist | 2.5d |
 

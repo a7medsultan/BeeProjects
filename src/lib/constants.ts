@@ -1,4 +1,10 @@
-import type { ProjectPriority, ProjectStatus, RoleName } from './types.ts';
+import type {
+	ProjectPriority,
+	ProjectStatus,
+	RoleName,
+	TaskPriority,
+	TaskStatus
+} from './types.ts';
 
 export const ROLE_LABELS: Record<RoleName, string> = {
 	admin: 'Admin',
@@ -59,4 +65,38 @@ export const PROJECT_PRIORITY_CLASSES: Record<ProjectPriority, string> = {
 	Low: 'bg-slate-100 text-slate-600',
 	Medium: 'bg-amber-50 text-amber-700',
 	High: 'bg-rose-50 text-rose-700'
+};
+
+export const TASK_STATUSES = ['Backlog', 'To Do', 'In Progress', 'Review', 'Done'] as const;
+
+export const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+	Backlog: 'Backlog',
+	'To Do': 'To Do',
+	'In Progress': 'In Progress',
+	Review: 'Review',
+	Done: 'Done'
+};
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+	Low: 'Low',
+	Medium: 'Medium',
+	High: 'High',
+	Urgent: 'Urgent'
+};
+
+export const TASK_STATUS_CLASSES: Record<TaskStatus, string> = {
+	Backlog: 'bg-slate-100 text-slate-700',
+	'To Do': 'bg-sky-50 text-sky-700',
+	'In Progress': 'bg-amber-50 text-amber-700',
+	Review: 'bg-violet-50 text-violet-700',
+	Done: 'bg-emerald-50 text-emerald-700'
+};
+
+export const TASK_PRIORITY_CLASSES: Record<TaskPriority, string> = {
+	Low: 'bg-slate-100 text-slate-600',
+	Medium: 'bg-sky-50 text-sky-700',
+	High: 'bg-amber-50 text-amber-700',
+	Urgent: 'bg-rose-50 text-rose-700'
 };

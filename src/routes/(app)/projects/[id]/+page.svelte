@@ -90,17 +90,26 @@
 			</dl>
 		</section>
 
-		<section
-			class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm"
-		>
+		<section class="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
 			<ListTodo class="mx-auto h-9 w-9 text-slate-300" />
-			<h3 class="mt-3 font-semibold text-slate-900">Task views arrive next</h3>
+			<h3 class="mt-3 font-semibold text-slate-900">Task management is live</h3>
 			<p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
-				The List view is part of M3 and the Kanban board is part of M4. Project members and activity
-				are already available.
+				Browse, search, create, and update tasks in the List view. The Kanban board arrives in M4.
 			</p>
-			<div class="mt-4 flex items-center justify-center gap-3">
+			<div class="mt-4 flex flex-wrap items-center justify-center gap-3">
+				<a
+					href={resolve('/(app)/projects/[id]/list', { id: data.project.id })}
+					class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+				>
+					Open task list
+				</a>
 				{#if data.permissions.canManage}
+					<a
+						href={resolve('/(app)/projects/[id]/tasks/new', { id: data.project.id })}
+						class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+					>
+						New task
+					</a>
 					<a
 						href={resolve('/(app)/projects/[id]/members', { id: data.project.id })}
 						class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"

@@ -88,3 +88,44 @@ export interface ActivityItem {
 	metadata: string | null;
 	createdAt: string;
 }
+
+export type TaskStatus = 'Backlog' | 'To Do' | 'In Progress' | 'Review' | 'Done';
+export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+
+export interface TaskAssignee {
+	userId: string;
+	name: string;
+	email: string;
+	isActive: boolean;
+}
+
+export interface TaskListItem {
+	id: string;
+	projectId: string;
+	projectName: string;
+	parentTaskId: string | null;
+	parentTitle: string | null;
+	title: string;
+	description: string;
+	priority: TaskPriority;
+	status: TaskStatus;
+	startDate: string | null;
+	dueDate: string | null;
+	completedAt: string | null;
+	createdById: string;
+	createdByName: string;
+	createdAt: string;
+	updatedAt: string;
+	assignees: TaskAssignee[];
+	subtaskCount: number;
+	completedSubtaskCount: number;
+	isOverdue: boolean;
+}
+
+export interface TaskPermissions {
+	canEdit: boolean;
+	canManageAssignees: boolean;
+	canDelete: boolean;
+	canCreateSubtask: boolean;
+	isAssignee: boolean;
+}

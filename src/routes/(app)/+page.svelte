@@ -42,8 +42,8 @@
 				{data.user ? `Welcome back, ${data.user.name.split(' ')[0]}` : 'Welcome to BeeProjects'}
 			</h2>
 			<p class="mt-1 text-sm text-slate-500">
-				Projects and membership are live. Task views and dashboard aggregation arrive in the next
-				milestones.
+				Projects and task management are live. Kanban, My Tasks, and dashboard aggregation arrive
+				next.
 			</p>
 		</div>
 		<a
@@ -124,10 +124,10 @@
 	<section class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h3 class="font-semibold text-indigo-950">Milestone M2 complete</h3>
+				<h3 class="font-semibold text-indigo-950">Milestone M3 complete</h3>
 				<p class="mt-1 text-sm text-indigo-900/70">
-					Project creation, membership, owner transfer, archive/unarchive, filters, progress, and
-					activity history are ready. Next: task management and the List view (M3).
+					Task creation, multiple assignees, subtasks, deadlines, status/priority updates, task
+					activity, and the List view are ready. Next: Kanban, My Tasks, and dashboard (M4).
 				</p>
 			</div>
 			<a

@@ -10,7 +10,7 @@ The full implementation plan lives in
 
 ## Current status
 
-**Milestone M2 — projects, membership, archive, and activity.**
+**Milestone M3 — task management, assignments, subtasks, and the List view.**
 
 - SvelteKit 3 + adapter-node scaffold
 - Tailwind 4 + shadcn-svelte-compatible setup (`components.json`, `cn` helper)
@@ -25,13 +25,20 @@ The full implementation plan lives in
 - Admin-only owner reassignment
 - Project filters (search, status, owner) and pagination
 - Automatic project progress from task completion
-- Project activity timeline and audit history
+- Project and task activity history
+- Task create/edit/delete with soft-delete and subtask cascade
+- Multiple assignees with project-membership validation
+- One-level subtasks with parent validation
+- Task status, priority, dates, overdue indicators, and completion timestamps
+- List view with search, status/priority/assignee/due filters, sorting, and pagination
+- Task detail page with inline editing, subtasks, and activity
+- Member-assignee edit permissions with manager-only assignment control
 - Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Next up: **M3 — task management, assignments, subtasks, and the List view.**
+Next up: **M4 — Kanban board, My Tasks, and dashboard aggregation.**
 
-The dashboard remains a preview until aggregation arrives in M4.
+The dashboard remains a preview until M4.
 
 ## Requirements
 
@@ -73,8 +80,20 @@ Change these before using the app with real data. `.env` is gitignored.
 - Owners and admins can edit, archive/unarchive, and manage members. Members have read-only project access.
 - Archived projects are read-only until unarchived.
 - A project owner cannot be removed. Members with open assigned tasks must be reassigned first.
-- Progress is calculated from completed tasks once task management lands in M3.
-- Project activity records creation, field changes, ownership changes, membership changes, and archive state changes.
+- Progress is calculated from completed tasks, including subtasks.
+- Project activity records creation, field changes, ownership changes, membership changes, archive state changes, and task events.
+
+## Tasks
+
+- Admins and project owners can create, edit, delete, and assign tasks. Members can update tasks assigned to them.
+- Tasks support multiple assignees, priority, status, start/due dates, and one level of subtasks.
+- Assignees must be active project members. Managers can reassign; member-assignees cannot change assignees.
+- Marking a task Done sets `completed_at`; moving it out of Done clears it.
+- Deleting a parent task soft-deletes its subtasks and still records the deletion in activity.
+- The List view supports search, status/priority/assignee/due filters, sorting by due date/priority/creation, and pagination.
+- Overdue tasks are highlighted in the List view and task detail.
+- Task detail includes inline editing, subtasks, assignment controls, and a task activity timeline.
+- Comments and attachments are placeholders until M5.
 
 ## Scripts
 
