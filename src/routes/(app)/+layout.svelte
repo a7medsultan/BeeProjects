@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import logo from '#lib/assets/favicon.svg';
+	import NotificationBell from '#lib/components/layout/NotificationBell.svelte';
 	import {
 		Bell,
 		FolderKanban,
@@ -113,7 +114,7 @@
 			<span
 				class="ml-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700"
 			>
-				M5
+				M6
 			</span>
 		</div>
 
@@ -194,9 +195,16 @@
 					</p>
 					<h1 class="text-lg font-semibold text-slate-900">Project workspace</h1>
 				</div>
-				<div class="hidden items-center gap-2 text-sm text-slate-500 sm:flex">
-					<span class="inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-					Local development
+				<div class="flex items-center gap-2">
+					<NotificationBell
+						initialCount={data.unreadCount}
+						recent={data.recentNotifications}
+						timezone={data.user?.timezone ?? 'UTC'}
+					/>
+					<div class="hidden items-center gap-2 text-sm text-slate-500 md:flex">
+						<span class="inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+						Local development
+					</div>
 				</div>
 			</div>
 		</div>

@@ -177,3 +177,19 @@ export interface AttachmentItem {
 	uploadedByName: string;
 	createdAt: string;
 }
+
+export type NotificationType =
+	'task_assigned' | 'task_reassigned' | 'comment_added' | 'mention' | 'due_soon' | 'overdue';
+
+export interface NotificationItem {
+	id: string;
+	type: NotificationType;
+	title: string;
+	body: string | null;
+	projectId: string | null;
+	taskId: string | null;
+	commentId: string | null;
+	actorName: string | null;
+	isRead: boolean;
+	createdAt: string;
+}

@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import type { CommentItem, RoleName } from '#lib/types.ts';
 import { extractMentionIds } from '#lib/mentions.ts';
 import { logActivity } from './activity.ts';
+import { notifyComment } from './notifications.ts';
 
 export class CommentInputError extends Error {
 	constructor(message: string) {
@@ -112,6 +113,15 @@ export function createComment(
 			actorId: input.authorId,
 			action: 'task.comment_added',
 			metadata: { commentId: id }
+		});
+
+		notifyComment(db, {
+			taskId: input.taskId,
+			projectId: input.projectId,
+			commentId: id,
+			authorId: input.authorId,
+			body,
+			mentionIds: extractMentionIds(body)
 		});
 	})();
 

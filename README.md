@@ -10,7 +10,7 @@ The full implementation plan lives in
 
 ## Current status
 
-**Milestone M5 — comments, mentions, attachments, and collaboration.**
+**Milestone M6 — in-app notifications and deadline jobs.**
 
 - SvelteKit 3 + adapter-node scaffold
 - Tailwind 4 + shadcn-svelte-compatible setup (`components.json`, `cn` helper)
@@ -38,12 +38,16 @@ The full implementation plan lives in
 - `@` mention autocomplete with project-member validation and highlighted mention chips
 - Private task attachments with magic-byte validation, authenticated download, and delete controls
 - Comment and attachment activity events in task and project timelines
+- In-app notifications for assignments, reassignments, comments, mentions, due-soon tasks, and overdue tasks
+- Notification bell with unread badge, recent dropdown, 30-second polling, and focus refresh
+- Notifications page with unread filtering, mark read, mark all read, and click-through to the task
+- Hourly deadline jobs with per-user timezone handling and dedupe keys
 - Task detail page with inline editing, subtasks, comments, attachments, and activity
 - Member-assignee edit permissions with manager-only assignment control
 - Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Next up: **M6 — in-app notifications and deadline jobs.**
+Next up: **M7 — hardening, end-to-end tests, backups, and acceptance.**
 
 ## Requirements
 
@@ -114,6 +118,17 @@ Change these before using the app with real data. `.env` is gitignored.
 - **Attachments:** any project member can upload; uploader, project owner, or admin can delete. Files are limited to 10 MB, checked against an extension/MIME/magic-byte allowlist, stored privately, and served only through an authenticated download route.
 - **Limits:** keep `BODY_SIZE_LIMIT=12M` in production so the 10 MB per-file limit can be enforced by the app rather than the adapter.
 - Comment and attachment changes are recorded in the task and project activity timelines.
+
+## Notifications
+
+- The bell polls unread count every 30 seconds and refreshes on window focus. The dropdown shows the five most recent notifications.
+- The notifications page supports all/unread filters, per-item mark-read, mark-all-read, and click-through to the related task.
+- Events: new assignment, reassignment/unassignment, new comment, mention, due-soon reminder, and overdue reminder.
+- Comment notifications go to task assignees and the task creator. Mentioned users get only the mention notification.
+- Deadline jobs run hourly. Due-soon reminders fire at the first tick after 08:00 in the assignee's timezone, one day before the due date. Overdue reminders fire once after the due date.
+- Dedupe keys prevent repeated deadline notifications for the same task/user/due date.
+- Self-notifications are skipped; deactivated users receive none.
+- Jobs run in-process, so keep a single app instance.
 
 ## Scripts
 

@@ -1,4 +1,9 @@
 import { redirect } from '@sveltejs/kit';
+import { getDb } from '#lib/server/db/index.ts';
+import {
+	getUnreadNotificationCount,
+	listRecentNotifications
+} from '#lib/server/services/notifications.ts';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = ({ locals, url }) => {
@@ -11,5 +16,11 @@ export const load: LayoutServerLoad = ({ locals, url }) => {
 		redirect(303, '/profile?force=1');
 	}
 
-	return { user: locals.user };
+	const db = getDb();
+
+	return {
+		user: locals.user,
+		unreadCount: getUnreadNotificationCount(db, locals.user.id),
+		recentNotifications: listRecentNotifications(db, locals.user.id, 5)
+	};
 };

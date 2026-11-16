@@ -45,3 +45,22 @@ export function addDaysISO(dateISO: string, days: number): string {
 	date.setUTCDate(date.getUTCDate() + days);
 	return date.toISOString().slice(0, 10);
 }
+
+export function localHour(timezone: string, date = new Date()): number {
+	try {
+		const parts = new Intl.DateTimeFormat('en-US', {
+			timeZone: timezone,
+			hour: 'numeric',
+			hour12: false
+		}).formatToParts(date);
+		const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+		return Number.isFinite(hour) ? hour % 24 : 0;
+	} catch {
+		const parts = new Intl.DateTimeFormat('en-US', {
+			timeZone: 'UTC',
+			hour: 'numeric',
+			hour12: false
+		}).formatToParts(date);
+		return Number(parts.find((part) => part.type === 'hour')?.value ?? '0') % 24;
+	}
+}

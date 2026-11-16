@@ -13,6 +13,7 @@ import type { ProjectAccess } from '../permissions.ts';
 import { getProjectAccess } from '../permissions.ts';
 import { addDaysISO, localDateISO } from '../dates.ts';
 import { logActivity } from './activity.ts';
+import { notifyTaskAssignment } from './notifications.ts';
 
 export interface TaskListResult {
 	tasks: TaskListItem[];
@@ -475,6 +476,19 @@ export function createTask(
 				metadata: { userId }
 			});
 		}
+
+		if (assignees.size > 0) {
+			notifyTaskAssignment(db, {
+				taskId: id,
+				projectId,
+				taskTitle: input.title.trim(),
+				actorId: actor.id,
+				actorName: actor.name,
+				added: [...assignees].map(([userId, name]) => ({ userId, name })),
+				removed: [],
+				hadAssignees: false
+			});
+		}
 	})();
 
 	return id;
@@ -530,13 +544,21 @@ export function updateTask(
 
 	let assigneesToAdd: Map<string, string> | null = null;
 	let assigneesToRemove: string[] = [];
+	let currentAssigneeIds: string[] = [];
+	let currentNames = new Map<string, string>();
 
 	if (access.canManage) {
-		const currentAssigneeIds = (
-			db.prepare('SELECT user_id FROM task_assignees WHERE task_id = ?').all(taskId) as Array<{
-				user_id: string;
-			}>
-		).map((row) => row.user_id);
+		const currentRows = db
+			.prepare(
+				`SELECT ta.user_id, u.name
+				 FROM task_assignees ta
+				 JOIN users u ON u.id = ta.user_id
+				 WHERE ta.task_id = ?`
+			)
+			.all(taskId) as Array<{ user_id: string; name: string }>;
+
+		currentAssigneeIds = currentRows.map((row) => row.user_id);
+		currentNames = new Map(currentRows.map((row) => [row.user_id, row.name]));
 
 		const nextAssigneeIds = [...new Set(input.assigneeIds.filter(Boolean))];
 		assigneesToAdd = validateAssignees(
@@ -619,9 +641,6 @@ export function updateTask(
 		}
 
 		for (const userId of assigneesToRemove) {
-			const user = db.prepare('SELECT name FROM users WHERE id = ?').get(userId) as
-				{ name: string } | undefined;
-
 			db.prepare('DELETE FROM task_assignees WHERE task_id = ? AND user_id = ?').run(
 				taskId,
 				userId
@@ -632,8 +651,24 @@ export function updateTask(
 				entityId: taskId,
 				actorId: actor.id,
 				action: 'task.assignee_removed',
-				oldValue: user?.name ?? null,
+				oldValue: currentNames.get(userId) ?? null,
 				metadata: { userId }
+			});
+		}
+
+		if (assigneesToAdd && (assigneesToAdd.size > 0 || assigneesToRemove.length > 0)) {
+			notifyTaskAssignment(db, {
+				taskId,
+				projectId: existing.project_id,
+				taskTitle: next.title,
+				actorId: actor.id,
+				actorName: actor.name,
+				added: [...assigneesToAdd].map(([userId, name]) => ({ userId, name })),
+				removed: assigneesToRemove.map((userId) => ({
+					userId,
+					name: currentNames.get(userId) ?? 'A teammate'
+				})),
+				hadAssignees: currentAssigneeIds.length > 0
 			});
 		}
 	})();

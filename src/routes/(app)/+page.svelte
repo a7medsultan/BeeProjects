@@ -257,10 +257,10 @@
 	<section class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h3 class="font-semibold text-indigo-950">Milestone M4 complete</h3>
+				<h3 class="font-semibold text-indigo-950">Milestone M6 complete</h3>
 				<p class="mt-1 text-sm text-indigo-900/70">
-					Kanban drag-and-drop, My Tasks, and accurate dashboard aggregation are ready. Next:
-					comments, mentions, and attachments (M5).
+					Comments, mentions, attachments, in-app notifications, and deadline reminders are ready.
+					Next: final hardening, end-to-end tests, backups, and acceptance (M7).
 				</p>
 			</div>
 			<a
