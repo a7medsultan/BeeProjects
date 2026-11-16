@@ -1,9 +1,10 @@
 # BeeProjects — Phase 0 Implementation Plan (Full-Stack SvelteKit)
 
 - **Source spec:** `Documentation/specs.md`
-- **Status:** Ready for implementation
+- **Status:** In implementation — M0 complete
 - **Architecture:** One full-stack SvelteKit 3 app, SSR, Node adapter, SQLite
 - **Target:** All Phase 0 completion criteria (spec §7), no out-of-scope features
+- **Progress:** M0 delivered: scaffold, SQLite schema/migrations, first-admin seed, session foundation, application shell, `/health`, lint/type/build gates.
 
 ---
 
@@ -41,7 +42,8 @@ The implementation must remain deliberately small: no ORM, no Redis, no WebSocke
 | Authentication | Opaque session tokens stored hashed, HttpOnly cookie |
 | CSRF | SvelteKit built-in origin checks for form submissions |
 | Deployment | `@sveltejs/adapter-node`, single Node process, single instance |
-| UI | Tailwind 4 + shadcn-svelte/bits-ui + lucide-svelte, light theme |
+| UI | Tailwind 4 + shadcn-svelte/bits-ui + @lucide/svelte, light theme |
+| SvelteKit 3 idioms | `#lib` subpath alias, `src/env.ts` + `$app/env/private`, `resolve()` from `$app/paths` |
 
 ---
 
@@ -59,7 +61,7 @@ Versions verified against the npm registry at planning time.
 | Adapter | `@sveltejs/adapter-node` | 6.0.x |
 | Styling | `tailwindcss` | 4.3.x |
 | Components | `shadcn-svelte` + `bits-ui` | 1.8.x / 2.21.x |
-| Icons | `lucide-svelte` | 1.0.x |
+| Icons | `@lucide/svelte` | 1.73.x |
 | Forms | `sveltekit-superforms` | 3.1.x |
 | Validation | `zod` | 4.6.x |
 | Database | `better-sqlite3` | 13.2.x |
@@ -74,6 +76,18 @@ Versions verified against the npm registry at planning time.
 | Type checking | `svelte-check` | 4.7.x |
 
 Dev tooling: ESLint + `eslint-plugin-svelte`, Prettier + `prettier-plugin-svelte`.
+
+### SvelteKit 3 conventions (verified in M0)
+
+- **Library alias:** `#lib` maps to `src/lib` through `package.json` `imports`; TypeScript and Vite resolve it natively. `$lib` is no longer generated. TypeScript modules imported through `#lib` need explicit extensions, e.g. `#lib/types.ts` and `#lib/server/db/index.ts`.
+- **Environment variables:** declare app variables in `src/env.ts` with `defineEnvVars` from `@sveltejs/kit/env`; import them from `$app/env/private`. Legacy `$env/dynamic/private` is not used.
+- **Internal links:** use `resolve()` from `$app/paths` with route IDs, e.g. `resolve('/(app)/projects')` and `resolve('/(auth)/login')`. The ESLint rule `svelte/no-navigation-without-resolve` enforces this.
+- **Page state:** `page` comes from `$app/state` (not `$app/stores`).
+- **Config:** adapter, CSP, and other SvelteKit options live in the `sveltekit()` Vite plugin in `vite.config.ts`; there is no generated `svelte.config.js`.
+- **TypeScript:** stay on 6.0.x; SvelteKit 3 and `svelte-check` peer ranges exclude TypeScript 7.
+- **Remote functions:** still experimental in SvelteKit 3; the implementation uses stable `load` functions and form actions.
+- **Import extensions:** route/server modules imported through `#lib` use explicit `.ts`; relative imports inside the server layer may remain extensionless because Vite resolves them.
+- **`bits-ui` peer warning:** its `runed` dependency still declares a SvelteKit 2 peer range; installation and build succeed with SvelteKit 3. Re-check when adding shadcn-svelte components.
 
 ---
 
@@ -145,9 +159,12 @@ BeeProjects/
 ├─ src/
 │  ├─ app.html
 │  ├─ app.css
-│  ├─ app.d.ts                       # App.Locals, App.PageData types
+│  ├─ app.d.ts                       # App.Locals, App.Error types
+│  ├─ env.ts                         # defineEnvVars declarations ($app/env/private)
 │  ├─ hooks.server.ts
 │  ├─ lib/
+│  │  ├─ index.ts                    # #lib alias entry
+│  │  ├─ assets/
 │  │  ├─ components/
 │  │  │  ├─ ui/                      # shadcn-svelte primitives and wrappers
 │  │  │  ├─ layout/                  # sidebar, topbar, notification bell
@@ -158,65 +175,76 @@ BeeProjects/
 │  │  ├─ types.ts                    # safe DTO types importable by components
 │  │  ├─ constants.ts                # statuses, priorities, labels, colors
 │  │  ├─ format.ts                   # date/timezone/priority formatting
-│  │  └─ mentions.ts                 # mention token parsing/rendering
-│  ├─ routes/
-│  │  ├─ +layout.svelte
-│  │  ├─ +error.svelte
-│  │  ├─ (auth)/login/+page.svelte
-│  │  ├─ (auth)/login/+page.server.ts
-│  │  ├─ (app)/+layout.svelte
-│  │  ├─ (app)/+layout.server.ts
-│  │  ├─ (app)/+page.svelte
-│  │  ├─ (app)/+page.server.ts
-│  │  ├─ (app)/projects/...
-│  │  ├─ (app)/tasks/...
-│  │  ├─ (app)/my-tasks/...
-│  │  ├─ (app)/notifications/...
-│  │  ├─ (app)/profile/...
-│  │  ├─ (app)/admin/...
-│  │  ├─ api/notifications/unread-count/+server.ts
-│  │  ├─ attachments/[id]/+server.ts
-│  │  └─ health/+server.ts
-│  └─ service-worker?                 # not used in Phase 0
-├─ src/lib/server/
-│  ├─ db/
-│  │  ├─ index.ts                    # singleton connection + pragmas
-│  │  ├─ migrate.ts                  # migration runner
-│  │  ├─ seed.ts                     # roles + first admin
-│  │  └─ migrations/
-│  │     ├─ 001_init.sql
-│  │     └─ ...
-│  ├─ auth/
-│  │  ├─ session.ts                  # create/validate/revoke sessions
-│  │  ├─ password.ts                 # Argon2id hash/verify
-│  │  └─ rate-limit.ts               # in-memory login limiter
-│  ├─ services/
-│  │  ├─ users.ts
-│  │  ├─ projects.ts
-│  │  ├─ tasks.ts
-│  │  ├─ comments.ts
-│  │  ├─ attachments.ts
-│  │  ├─ notifications.ts
-│  │  ├─ dashboard.ts
-│  │  └─ activity.ts
-│  ├─ permissions.ts
-│  ├─ events/
-│  │  ├─ activity.ts                 # typed activity writers
-│  │  └─ notifications.ts            # notification creation + dedupe
-│  ├─ uploads.ts
-│  ├─ jobs.ts
-│  └─ dates.ts
+│  │  ├─ mentions.ts                 # mention token parsing/rendering
+│  │  └─ server/
+│  │     ├─ db/
+│  │     │  ├─ index.ts              # singleton connection + pragmas
+│  │     │  ├─ migrate.ts            # migration runner (bundled SQL)
+│  │     │  ├─ migrate-shared.ts     # shared applyMigrations for CLI + app
+│  │     │  ├─ seed.ts               # first-admin seeding
+│  │     │  └─ migrations/
+│  │     │     ├─ 001_init.sql
+│  │     │     └─ index.ts           # import.meta.glob bundling
+│  │     ├─ auth/
+│  │     │  ├─ session.ts            # create/validate/revoke sessions
+│  │     │  ├─ password.ts           # Argon2id hash/verify
+│  │     │  └─ rate-limit.ts         # in-memory login limiter
+│  │     ├─ services/
+│  │     │  ├─ users.ts
+│  │     │  ├─ projects.ts
+│  │     │  ├─ tasks.ts
+│  │     │  ├─ comments.ts
+│  │     │  ├─ attachments.ts
+│  │     │  ├─ notifications.ts
+│  │     │  ├─ dashboard.ts
+│  │     │  └─ activity.ts
+│  │     ├─ permissions.ts
+│  │     ├─ events/
+│  │     │  ├─ activity.ts           # typed activity writers
+│  │     │  └─ notifications.ts      # notification creation + dedupe
+│  │     ├─ uploads.ts
+│  │     ├─ jobs.ts
+│  │     └─ dates.ts
+│  └─ routes/
+│     ├─ +layout.svelte
+│     ├─ +error.svelte
+│     ├─ (auth)/login/+page.svelte
+│     ├─ (auth)/login/+page.server.ts
+│     ├─ (app)/+layout.svelte
+│     ├─ (app)/+layout.server.ts
+│     ├─ (app)/+page.svelte
+│     ├─ (app)/+page.server.ts
+│     ├─ (app)/projects/...
+│     ├─ (app)/tasks/...
+│     ├─ (app)/my-tasks/...
+│     ├─ (app)/notifications/...
+│     ├─ (app)/profile/...
+│     ├─ (app)/admin/...
+│     ├─ api/notifications/unread-count/+server.ts
+│     ├─ attachments/[id]/+server.ts
+│     └─ health/+server.ts
 ├─ static/
 ├─ data/                             # app.db, gitignored
 ├─ storage/attachments/              # gitignored
 ├─ scripts/
 │  ├─ backup.sh
+│  ├─ migrate.ts
+│  ├─ seed.ts
 │  └─ seed-demo.ts
 ├─ tests/
 │  ├─ unit/
 │  ├─ http/
 │  └─ e2e/
 └─ build/                            # generated, gitignored
+```
+
+`#lib` is configured in `package.json`:
+
+```json
+"imports": {
+	"#lib": "./src/lib/index.js",
+	"#lib/*": "./src/lib/*"
+}
 ```
 
 ---
@@ -230,7 +258,6 @@ BeeProjects/
 PORT=3000
 HOST=127.0.0.1
 ORIGIN=http://localhost:3000
-NODE_ENV=development
 
 # Storage
 DATABASE_PATH=./data/app.db
@@ -249,18 +276,54 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=change-me-please
 
 # Reverse proxy (production)
-PROTOCOL_HEADER=x-forwarded-proto
-HOST_HEADER=x-forwarded-host
-ADDRESS_HEADER=x-forwarded-for
-XFF_DEPTH=1
+# PROTOCOL_HEADER=x-forwarded-proto
+# HOST_HEADER=x-forwarded-host
+# ADDRESS_HEADER=x-forwarded-for
+# XFF_DEPTH=1
 ```
 
 Notes:
 
 - `BODY_SIZE_LIMIT` must be raised: adapter-node defaults to **512 KB**, which is too small for attachments.
 - `ORIGIN` is used by adapter-node for CSRF checks and URL construction. It must match the public origin.
-- Production does **not** auto-load `.env`; start with `node --env-file=.env build`.
+- Production does **not** auto-load `.env`; start with `NODE_ENV=production node --env-file=.env build`.
 - `JOBS_ENABLED=false` in tests to prevent timers.
+- `PORT`, `HOST`, `ORIGIN`, `BODY_SIZE_LIMIT`, and reverse-proxy headers are consumed by adapter-node/Vite, not by `src/env.ts`.
+
+### Application environment declarations
+
+SvelteKit 3 declares app-level env vars in `src/env.ts`:
+
+```ts
+import { defineEnvVars } from '@sveltejs/kit/env';
+import { z } from 'zod';
+
+export const variables = defineEnvVars({
+	DATABASE_PATH: { schema: z.string().min(1).default('./data/app.db') },
+	UPLOAD_DIR: { schema: z.string().min(1).default('./storage/attachments') },
+	SESSION_TTL_DAYS: {
+		schema: (value) => {
+			const parsed = Number(value ?? 30);
+			if (!Number.isInteger(parsed) || parsed <= 0) throw new Error('must be a positive integer');
+			return parsed;
+		}
+	},
+	JOBS_ENABLED: {
+		schema: z
+			.string()
+			.optional()
+			.transform((value) => value !== 'false')
+	}
+});
+```
+
+These are imported from `$app/env/private`:
+
+```ts
+import { DATABASE_PATH, JOBS_ENABLED } from '$app/env/private';
+```
+
+Do not use the legacy `$env/dynamic/private` module.
 
 ---
 
@@ -775,7 +838,8 @@ Guard the interval and DB singleton with `globalThis` to survive dev HMR. Single
 - **Spacing:** 8px grid; compact tables; 44px minimum touch targets.
 - **Light theme only** for Phase 0 (dark mode deferred).
 - shadcn-svelte components for dialogs, menus, selects, tabs, tooltips, badges, and buttons.
-- lucide-svelte icons only; no emoji icons.
+- @lucide/svelte icons only; no emoji icons.
+- Internal navigation uses `resolve()` from `$app/paths` with route IDs (`resolve('/(app)/projects')`), never hardcoded `href` values; ESLint enforces this.
 - Status colors: Backlog gray, To Do blue, In Progress amber, Review violet, Done green.
 - Priority colors: Low gray, Medium blue, High amber, Urgent red.
 - Loading skeletons, empty states with CTAs, inline validation, focus rings, keyboard access.
@@ -797,14 +861,14 @@ Guard the interval and DB singleton with `globalThis` to survive dev HMR. Single
 - CSRF: SvelteKit origin checks for form actions; `ORIGIN` configured correctly; `trustedOrigins` empty.
 - CSP via SvelteKit `csp` (`mode: 'auto'`, self-only scripts/styles, `frame-ancestors 'none'`).
 - Additional headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS at proxy.
-- Server-only modules under `$lib/server`; SvelteKit prevents client imports.
+- Server-only modules under `#lib/server`; SvelteKit prevents client imports.
 - Prepared SQL statements only; no string interpolation of values.
 - Authorization re-checked in every load/action/endpoint.
 - Upload allowlist, magic-byte validation, private storage, authenticated download.
 - Safe error responses; `handleError` logs details server-side only.
 - Open-redirect protection for `redirectTo`.
 - Last-admin and PM-ownership guards prevent lockout/orphaned projects.
-- No secrets in client bundles; runtime secrets via `$env/dynamic/private`.
+- No secrets in client bundles; runtime secrets via `$app/env/private` (`src/env.ts`).
 
 ### Non-functional
 
@@ -928,7 +992,7 @@ Backups must include uploads; DB-only backups are incomplete.
 
 | # | Deliverable | Exit criteria | Est. |
 |---|---|---|---|
-| M0 | Scaffold, adapter-node, Tailwind/shadcn, DB layer/migrations, `init` hook, seed, `/health`, base layout, git init + `.gitignore` | `pnpm dev` runs; migrations applied; admin seeded; health OK | 1.5d |
+| M0 ✅ | Scaffold, adapter-node, Tailwind/shadcn, DB layer/migrations, `init` hook, seed, `/health`, base layout, git init + `.gitignore` | `pnpm dev` runs; migrations applied; admin seeded; health OK; check/lint/build pass | Done |
 | M1 | Sessions, login/logout, rate limit, password change/reset, admin user pages, guards, last-admin protection | Spec §7.1; deactivated users blocked; sessions revoked | 2.5d |
 | M2 | Projects/members, project layout/tabs, archive, owner reassignment, activity foundation | Spec §7.2–7.3; ownership and member guards enforced | 2.5d |
 | M3 | Tasks, assignees, subtasks, activity, List view with search/filter/sort/pagination, task detail | Spec §7.4–7.5, §7.9 (task events) | 3d |
@@ -1016,6 +1080,8 @@ Also deferred: dark mode, email notifications, self-registration, password reset
 | Activity table growth | Indexed pagination; retention policy deferred |
 | Dev HMR duplicate DB/timers | `globalThis` guards; skip jobs when building |
 | SvelteKit major-version API changes | Pin versions; use stable features (no experimental remote functions) |
+| `#lib` imports fail to resolve | Use explicit extensions for TS modules (`#lib/types.ts`, `#lib/server/db/index.ts`); covered by `svelte-check` |
+| `bits-ui`/`runed` stale SvelteKit peer | Verified install/build; re-check when adding shadcn-svelte components |
 
 ---
 
