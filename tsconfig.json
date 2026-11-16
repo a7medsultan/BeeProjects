@@ -4,5 +4,13 @@
 		"strict": true,
 		"types": ["$app/types", "node"]
 	},
-	"include": ["src", "scripts", "vite.config.ts", "prettier.config.js", "eslint.config.js"]
+	"include": [
+		"src",
+		"scripts",
+		"tests",
+		"vite.config.ts",
+		"vitest.config.ts",
+		"prettier.config.js",
+		"eslint.config.js"
+	]
 }

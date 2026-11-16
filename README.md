@@ -10,20 +10,22 @@ The full implementation plan lives in
 
 ## Current status
 
-**Milestone M0 — foundation.**
+**Milestone M1 — authentication and user management.**
 
 - SvelteKit 3 + adapter-node scaffold
 - Tailwind 4 + shadcn-svelte-compatible setup (`components.json`, `cn` helper)
 - SQLite schema, migration runner, and connection pragmas
-- First-admin seeding with Argon2id password hashing
-- Server-side session validation foundation
-- Application shell (sidebar, dashboard, login shell, placeholder pages)
+- Server-side sessions, HttpOnly cookies, login/logout, and login rate limiting
+- Argon2id passwords, self-service password change, and admin password resets
+- Admin user management: create, edit, deactivate/reactivate, reset password
+- Forced password change for temporary passwords
+- Role guards, last-admin protection, and project-ownership deactivation guard
+- Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Next up: **M1 — authentication and user management.**
+Next up: **M2 — projects, membership, archive, and activity foundation.**
 
-The login form is intentionally disabled until M1. The dashboard is an M0 preview and
-does not expose real data.
+The dashboard remains a preview until projects and tasks arrive in M2–M4.
 
 ## Requirements
 
@@ -40,7 +42,7 @@ pnpm db:seed           # applies migrations + creates the first admin
 pnpm dev
 ```
 
-Open <http://localhost:5173>. Health check: <http://localhost:5173/health>.
+Use the URL printed by Vite (default <http://localhost:5173>). Health check: `/health`.
 
 The default development admin from `.env.example` is:
 
@@ -48,6 +50,15 @@ The default development admin from `.env.example` is:
 - Password: `change-me-please`
 
 Change these before using the app with real data. `.env` is gitignored.
+
+## Authentication
+
+- Login is session-based; the `sid` cookie is HttpOnly, SameSite=Lax, and Secure in production.
+- Failed logins are rate-limited in memory (10 attempts / 15 minutes per IP and IP+email).
+- Admin-created users receive a one-time temporary password and must change it at first sign-in.
+- Password changes and admin resets revoke the user's other sessions.
+- Deactivated users cannot sign in; reactivating restores access.
+- There is no self-registration or email-based password reset in Phase 0.
 
 ## Scripts
 

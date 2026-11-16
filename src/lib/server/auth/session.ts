@@ -1,8 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { dev } from '$app/env';
+import type { Cookies } from '@sveltejs/kit';
 import type Database from 'better-sqlite3';
 import type { PublicUser, RoleName, SessionInfo } from '#lib/types.ts';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_DAY_SECONDS = 24 * 60 * 60;
+
+export const SESSION_COOKIE_NAME = 'sid';
 
 interface SessionRow {
 	expires_at: string;
@@ -115,4 +120,28 @@ export function revokeAllUserSessions(
 
 export function deleteExpiredSessions(db: Database.Database): void {
 	db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(new Date().toISOString());
+}
+
+export function setSessionCookie(
+	cookies: Cookies,
+	token: string,
+	expiresAt: string,
+	ttlDays: number
+): void {
+	cookies.set(SESSION_COOKIE_NAME, token, {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'lax',
+		secure: !dev,
+		expires: new Date(expiresAt),
+		maxAge: Math.max(1, Math.floor(ttlDays * ONE_DAY_SECONDS))
+	});
+}
+
+export function clearSessionCookie(cookies: Cookies): void {
+	cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+}
+
+export function getSessionToken(cookies: Cookies): string | undefined {
+	return cookies.get(SESSION_COOKIE_NAME);
 }

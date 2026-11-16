@@ -116,17 +116,19 @@
 	<section class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h3 class="font-semibold text-indigo-950">Milestone M0 complete</h3>
+				<h3 class="font-semibold text-indigo-950">Milestone M1 complete</h3>
 				<p class="mt-1 text-sm text-indigo-900/70">
-					SvelteKit 3, SQLite migrations, server-side sessions, and the application shell are ready.
-					Next: authentication and user management (M1).
+					Server-side authentication, session management, role guards, password changes, and admin
+					user management are ready. Next: projects and membership (M2).
 				</p>
 			</div>
 			<a
-				href={resolve('/(auth)/login')}
+				href={data.user?.role === 'admin'
+					? resolve('/(app)/admin/users')
+					: resolve('/(app)/profile')}
 				class="inline-flex items-center gap-2 self-start rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
 			>
-				View login shell
+				{data.user?.role === 'admin' ? 'Manage users' : 'Open profile'}
 				<ArrowRight class="h-4 w-4" />
 			</a>
 		</div>

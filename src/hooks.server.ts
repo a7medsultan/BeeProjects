@@ -3,7 +3,11 @@ import { building } from '$app/env';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
 import { closeDb, configureDb, getDb } from '#lib/server/db/index.ts';
 import { migrate } from '#lib/server/db/migrate.ts';
-import { validateSession } from '#lib/server/auth/session.ts';
+import {
+	SESSION_COOKIE_NAME,
+	clearSessionCookie,
+	validateSession
+} from '#lib/server/auth/session.ts';
 import { startJobs, stopJobs } from '#lib/server/jobs.ts';
 
 export const init: ServerInit = async () => {
@@ -22,7 +26,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = null;
 
 	if (!building) {
-		const token = event.cookies.get('sid');
+		const token = event.cookies.get(SESSION_COOKIE_NAME);
 
 		if (token) {
 			const context = validateSession(getDb(), token);
@@ -31,7 +35,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				event.locals.user = context.user;
 				event.locals.session = context.session;
 			} else {
-				event.cookies.delete('sid', { path: '/' });
+				clearSessionCookie(event.cookies);
 			}
 		}
 	}

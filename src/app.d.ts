@@ -11,6 +11,14 @@ declare global {
 			user: PublicUser | null;
 			session: SessionInfo | null;
 		}
+
+		namespace Superforms {
+			type Message = {
+				type: 'success' | 'error' | 'warning';
+				text: string;
+				tempPassword?: string;
+			};
+		}
 	}
 }
 

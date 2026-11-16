@@ -7,7 +7,9 @@
 		FolderKanban,
 		LayoutDashboard,
 		ListChecks,
+		LogOut,
 		Menu,
+		Shield,
 		UserRound,
 		X
 	} from '@lucide/svelte';
@@ -17,7 +19,7 @@
 
 	let sidebarOpen = $state(false);
 
-	const navigation = [
+	const baseNavigation = [
 		{ path: '/', href: resolve('/(app)'), label: 'Dashboard', icon: LayoutDashboard },
 		{
 			path: '/projects',
@@ -39,6 +41,20 @@
 		},
 		{ path: '/profile', href: resolve('/(app)/profile'), label: 'Profile', icon: UserRound }
 	];
+
+	const navigation = $derived([
+		...baseNavigation,
+		...(data.user?.role === 'admin'
+			? [
+					{
+						path: '/admin',
+						href: resolve('/(app)/admin/users'),
+						label: 'Admin',
+						icon: Shield
+					}
+				]
+			: [])
+	]);
 
 	const pathname = $derived(page.url.pathname);
 
@@ -97,7 +113,7 @@
 			<span
 				class="ml-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700"
 			>
-				M0
+				M1
 			</span>
 		</div>
 
@@ -135,6 +151,15 @@
 						</p>
 					</div>
 				</div>
+				<form method="POST" action={resolve('/(app)/profile') + '?/logout'} class="mt-3">
+					<button
+						type="submit"
+						class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+					>
+						<LogOut class="h-4 w-4" />
+						Sign out
+					</button>
+				</form>
 			{:else}
 				<a
 					href={resolve('/(auth)/login')}
@@ -144,7 +169,7 @@
 					Sign in
 				</a>
 				<p class="mt-2 text-[11px] leading-4 text-slate-400">
-					Authentication is wired up in milestone M1.
+					Server-side sessions and role guards are active.
 				</p>
 			{/if}
 		</div>

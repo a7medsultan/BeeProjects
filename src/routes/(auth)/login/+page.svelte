@@ -1,6 +1,17 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import { ArrowLeft, LogIn, ShieldCheck } from '@lucide/svelte';
+	import { LogIn, ShieldCheck } from '@lucide/svelte';
+	import { untrack } from 'svelte';
+	import { superForm } from 'sveltekit-superforms';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
+
+	const { form, errors, message, enhance, submitting } = superForm(
+		untrack(() => data.form),
+		{
+			taintedMessage: false
+		}
+	);
 </script>
 
 <svelte:head>
@@ -14,13 +25,35 @@
 		</span>
 		<div>
 			<h1 class="text-xl font-semibold tracking-tight text-slate-900">Sign in</h1>
-			<p class="mt-1 text-sm text-slate-500">
-				Session-based authentication is wired up in milestone M1.
-			</p>
+			<p class="mt-1 text-sm text-slate-500">Use the account your administrator created.</p>
 		</div>
 	</div>
 
-	<form method="POST" action="?/login" class="mt-6 space-y-4" aria-describedby="login-note">
+	{#if data.loggedOut}
+		<p class="mt-5 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+			You have been signed out.
+		</p>
+	{/if}
+
+	{#if $message}
+		<p
+			class={[
+				'mt-5 rounded-lg px-3 py-2 text-sm',
+				$message.type === 'error'
+					? 'bg-rose-50 text-rose-800'
+					: $message.type === 'warning'
+						? 'bg-amber-50 text-amber-800'
+						: 'bg-emerald-50 text-emerald-800'
+			]}
+			role="status"
+		>
+			{$message.text}
+		</p>
+	{/if}
+
+	<form method="POST" action="?/login" use:enhance class="mt-6 space-y-4">
+		<input type="hidden" name="redirectTo" bind:value={$form.redirectTo} />
+
 		<div>
 			<label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
 			<input
@@ -29,8 +62,14 @@
 				type="email"
 				autocomplete="username"
 				placeholder="you@example.com"
+				bind:value={$form.email}
+				aria-invalid={$errors.email ? 'true' : undefined}
+				aria-describedby={$errors.email ? 'email-error' : undefined}
 				class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 			/>
+			{#if $errors.email}
+				<p id="email-error" class="mt-1.5 text-sm text-rose-600">{$errors.email[0]}</p>
+			{/if}
 		</div>
 
 		<div>
@@ -39,33 +78,32 @@
 			</label>
 			<input
 				id="password"
-				name="password"
+				name="_password"
 				type="password"
 				autocomplete="current-password"
 				placeholder="••••••••••"
+				bind:value={$form._password}
+				aria-invalid={$errors._password ? 'true' : undefined}
+				aria-describedby={$errors._password ? 'password-error' : undefined}
 				class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 			/>
+			{#if $errors._password}
+				<p id="password-error" class="mt-1.5 text-sm text-rose-600">{$errors._password[0]}</p>
+			{/if}
 		</div>
 
 		<button
 			type="submit"
-			disabled
-			class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white opacity-60"
+			disabled={$submitting}
+			class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
 		>
 			<LogIn class="h-4 w-4" />
-			Sign in
+			{$submitting ? 'Signing in…' : 'Sign in'}
 		</button>
 	</form>
 
-	<p id="login-note" class="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-		This is the M0 login shell. Accounts, sessions, and role guards are enabled in M1.
+	<p class="mt-4 text-xs leading-5 text-slate-500">
+		Forgot your password? Ask an administrator to reset it. There is no email-based reset in Phase
+		0.
 	</p>
-
-	<a
-		href={resolve('/(app)')}
-		class="mt-6 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
-	>
-		<ArrowLeft class="h-4 w-4" />
-		Back to dashboard preview
-	</a>
 </div>

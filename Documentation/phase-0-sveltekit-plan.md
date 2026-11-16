@@ -1,10 +1,10 @@
 # BeeProjects — Phase 0 Implementation Plan (Full-Stack SvelteKit)
 
 - **Source spec:** `Documentation/specs.md`
-- **Status:** In implementation — M0 complete
+- **Status:** In implementation — M1 complete
 - **Architecture:** One full-stack SvelteKit 3 app, SSR, Node adapter, SQLite
 - **Target:** All Phase 0 completion criteria (spec §7), no out-of-scope features
-- **Progress:** M0 delivered: scaffold, SQLite schema/migrations, first-admin seed, session foundation, application shell, `/health`, lint/type/build gates.
+- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change).
 
 ---
 
@@ -186,8 +186,10 @@ BeeProjects/
 │  │     │     ├─ 001_init.sql
 │  │     │     └─ index.ts           # import.meta.glob bundling
 │  │     ├─ auth/
-│  │     │  ├─ session.ts            # create/validate/revoke sessions
+│  │     │  ├─ session.ts            # create/validate/revoke sessions + cookies
 │  │     │  ├─ password.ts           # Argon2id hash/verify
+│  │     │  ├─ guards.ts             # requireUser / requireAdmin + temp-password gate
+│  │     │  ├─ redirect.ts           # safe local redirect validation
 │  │     │  └─ rate-limit.ts         # in-memory login limiter
 │  │     ├─ services/
 │  │     │  ├─ users.ts
@@ -669,6 +671,9 @@ Kanban moves use the board page's `?/move` form action, not a JSON endpoint, so 
 - `(app)` layout: unauthenticated → login redirect.
 - `(app)/admin` layout: non-admin → 403 error page.
 - Every action and endpoint repeats authorization; load guards are UX only.
+- `requireUser()` and `requireAdmin()` in `src/lib/server/auth/guards.ts` are used in every protected load and action.
+- `requireUser()` redirects users with `must_change_password = 1` to `/profile?force=1`; only profile actions pass `{ allowPendingPassword: true }`. This prevents a temporary password from being used for any mutation.
+- Admin actions enforce: no self-deactivation, no self role change, last active admin protection, and no demotion/deactivation of users who own non-archived projects.
 
 ---
 
@@ -993,7 +998,7 @@ Backups must include uploads; DB-only backups are incomplete.
 | # | Deliverable | Exit criteria | Est. |
 |---|---|---|---|
 | M0 ✅ | Scaffold, adapter-node, Tailwind/shadcn, DB layer/migrations, `init` hook, seed, `/health`, base layout, git init + `.gitignore` | `pnpm dev` runs; migrations applied; admin seeded; health OK; check/lint/build pass | Done |
-| M1 | Sessions, login/logout, rate limit, password change/reset, admin user pages, guards, last-admin protection | Spec §7.1; deactivated users blocked; sessions revoked | 2.5d |
+| M1 ✅ | Sessions, login/logout, rate limit, password change/reset, admin user pages, guards, last-admin protection | Spec §7.1; deactivated users blocked; sessions revoked; temp-password flow enforced | Done |
 | M2 | Projects/members, project layout/tabs, archive, owner reassignment, activity foundation | Spec §7.2–7.3; ownership and member guards enforced | 2.5d |
 | M3 | Tasks, assignees, subtasks, activity, List view with search/filter/sort/pagination, task detail | Spec §7.4–7.5, §7.9 (task events) | 3d |
 | M4 | Kanban DnD action, My Tasks, dashboard, progress calculation | Spec §7.6–7.7, §7.11 | 3d |
