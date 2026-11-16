@@ -113,7 +113,7 @@
 			<span
 				class="ml-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700"
 			>
-				M1
+				M2
 			</span>
 		</div>
 

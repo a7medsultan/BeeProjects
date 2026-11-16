@@ -42,7 +42,7 @@
 				{data.user ? `Welcome back, ${data.user.name.split(' ')[0]}` : 'Welcome to BeeProjects'}
 			</h2>
 			<p class="mt-1 text-sm text-slate-500">
-				The foundation is in place. Projects, tasks, and collaboration arrive in the next
+				Projects and membership are live. Task views and dashboard aggregation arrive in the next
 				milestones.
 			</p>
 		</div>
@@ -106,8 +106,16 @@
 					class="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center"
 				>
 					<FolderKanban class="mx-auto h-8 w-8 text-slate-300" />
-					<p class="mt-3 text-sm font-medium text-slate-700">No projects yet</p>
-					<p class="mt-1 text-xs text-slate-500">Project creation is part of milestone M2.</p>
+					<p class="mt-3 text-sm font-medium text-slate-700">Dashboard aggregation arrives in M4</p>
+					<p class="mt-1 text-xs text-slate-500">
+						Use the Projects page to browse and manage projects now.
+					</p>
+					<a
+						href={resolve('/(app)/projects')}
+						class="mt-3 inline-flex text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+					>
+						Open projects
+					</a>
 				</div>
 			</div>
 		</section>
@@ -116,19 +124,17 @@
 	<section class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h3 class="font-semibold text-indigo-950">Milestone M1 complete</h3>
+				<h3 class="font-semibold text-indigo-950">Milestone M2 complete</h3>
 				<p class="mt-1 text-sm text-indigo-900/70">
-					Server-side authentication, session management, role guards, password changes, and admin
-					user management are ready. Next: projects and membership (M2).
+					Project creation, membership, owner transfer, archive/unarchive, filters, progress, and
+					activity history are ready. Next: task management and the List view (M3).
 				</p>
 			</div>
 			<a
-				href={data.user?.role === 'admin'
-					? resolve('/(app)/admin/users')
-					: resolve('/(app)/profile')}
+				href={resolve('/(app)/projects')}
 				class="inline-flex items-center gap-2 self-start rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
 			>
-				{data.user?.role === 'admin' ? 'Manage users' : 'Open profile'}
+				Open projects
 				<ArrowRight class="h-4 w-4" />
 			</a>
 		</div>

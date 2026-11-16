@@ -10,7 +10,7 @@ The full implementation plan lives in
 
 ## Current status
 
-**Milestone M1 — authentication and user management.**
+**Milestone M2 — projects, membership, archive, and activity.**
 
 - SvelteKit 3 + adapter-node scaffold
 - Tailwind 4 + shadcn-svelte-compatible setup (`components.json`, `cn` helper)
@@ -20,12 +20,18 @@ The full implementation plan lives in
 - Admin user management: create, edit, deactivate/reactivate, reset password
 - Forced password change for temporary passwords
 - Role guards, last-admin protection, and project-ownership deactivation guard
+- Project create/edit/archive/unarchive with owner, dates, priority, and status
+- Project membership add/remove with owner and open-task guards
+- Admin-only owner reassignment
+- Project filters (search, status, owner) and pagination
+- Automatic project progress from task completion
+- Project activity timeline and audit history
 - Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Next up: **M2 — projects, membership, archive, and activity foundation.**
+Next up: **M3 — task management, assignments, subtasks, and the List view.**
 
-The dashboard remains a preview until projects and tasks arrive in M2–M4.
+The dashboard remains a preview until aggregation arrives in M4.
 
 ## Requirements
 
@@ -59,6 +65,16 @@ Change these before using the app with real data. `.env` is gitignored.
 - Password changes and admin resets revoke the user's other sessions.
 - Deactivated users cannot sign in; reactivating restores access.
 - There is no self-registration or email-based password reset in Phase 0.
+
+## Projects
+
+- Admins and project managers can create projects; project managers own the projects they create.
+- Admins can assign an owner at creation and transfer ownership later. The new owner is added as a member; the previous owner stays a member.
+- Owners and admins can edit, archive/unarchive, and manage members. Members have read-only project access.
+- Archived projects are read-only until unarchived.
+- A project owner cannot be removed. Members with open assigned tasks must be reassigned first.
+- Progress is calculated from completed tasks once task management lands in M3.
+- Project activity records creation, field changes, ownership changes, membership changes, and archive state changes.
 
 ## Scripts
 

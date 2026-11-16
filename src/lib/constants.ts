@@ -1,4 +1,4 @@
-import type { RoleName } from './types.ts';
+import type { ProjectPriority, ProjectStatus, RoleName } from './types.ts';
 
 export const ROLE_LABELS: Record<RoleName, string> = {
 	admin: 'Admin',
@@ -11,3 +11,52 @@ export const ROLE_OPTIONS: Array<{ value: RoleName; label: string }> = [
 	{ value: 'project_manager', label: ROLE_LABELS.project_manager },
 	{ value: 'member', label: ROLE_LABELS.member }
 ];
+
+export const PROJECT_STATUSES = [
+	'Planning',
+	'Active',
+	'On Hold',
+	'Completed',
+	'Archived'
+] as const satisfies readonly ProjectStatus[];
+
+export const PROJECT_OPEN_STATUSES = [
+	'Planning',
+	'Active',
+	'On Hold',
+	'Completed'
+] as const satisfies readonly ProjectStatus[];
+
+export const PROJECT_PRIORITIES = [
+	'Low',
+	'Medium',
+	'High'
+] as const satisfies readonly ProjectPriority[];
+
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+	Planning: 'Planning',
+	Active: 'Active',
+	'On Hold': 'On Hold',
+	Completed: 'Completed',
+	Archived: 'Archived'
+};
+
+export const PROJECT_PRIORITY_LABELS: Record<ProjectPriority, string> = {
+	Low: 'Low',
+	Medium: 'Medium',
+	High: 'High'
+};
+
+export const PROJECT_STATUS_CLASSES: Record<ProjectStatus, string> = {
+	Planning: 'bg-slate-100 text-slate-700',
+	Active: 'bg-emerald-50 text-emerald-700',
+	'On Hold': 'bg-amber-50 text-amber-700',
+	Completed: 'bg-sky-50 text-sky-700',
+	Archived: 'bg-slate-200 text-slate-600'
+};
+
+export const PROJECT_PRIORITY_CLASSES: Record<ProjectPriority, string> = {
+	Low: 'bg-slate-100 text-slate-600',
+	Medium: 'bg-amber-50 text-amber-700',
+	High: 'bg-rose-50 text-rose-700'
+};
