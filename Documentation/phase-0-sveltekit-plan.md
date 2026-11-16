@@ -1,10 +1,10 @@
 # BeeProjects — Phase 0 Implementation Plan (Full-Stack SvelteKit)
 
 - **Source spec:** `Documentation/specs.md`
-- **Status:** In implementation — M6 complete
+- **Status:** Phase 0 complete (M7)
 - **Architecture:** One full-stack SvelteKit 3 app, SSR, Node adapter, SQLite
 - **Target:** All Phase 0 completion criteria (spec §7), no out-of-scope features
-- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling). M4 delivered (Kanban board, My Tasks, dashboard statistics, My Work, recent updates, project overview). M5 delivered (comments, mentions, attachments, private downloads, collaboration activity). M6 delivered (in-app notifications, bell polling, notifications page, assignment/comment/mention triggers, hourly due-soon/overdue jobs with dedupe).
+- **Progress:** M0 delivered (scaffold, schema, migrations, shell, `/health`). M1 delivered (sessions, login/logout, rate limiting, password change/reset, admin user management, role guards, forced temp-password change). M2 delivered (projects, owner transfer, membership guards, archive/unarchive, filters/pagination, progress calculation, activity timeline). M3 delivered (tasks, multiple assignees, subtasks, soft delete, task activity, List view, task detail, overdue handling). M4 delivered (Kanban board, My Tasks, dashboard statistics, My Work, recent updates, project overview). M5 delivered (comments, mentions, attachments, private downloads, collaboration activity). M6 delivered (in-app notifications, bell polling, notifications page, assignment/comment/mention triggers, hourly due-soon/overdue jobs with dedupe). M7 delivered (Playwright E2E, production CSP, backup script, README/deployment/restore docs, acceptance).
 
 ---
 
@@ -652,6 +652,18 @@ Create/edit flows are dedicated pages, not modals — simpler progressive enhanc
 - Single app instance required because jobs and rate limiting are in-process.
 - Core files: `services/notifications.ts`, `NotificationBell.svelte`, `notifications/`, `api/notifications/unread-count/`, and `jobs.ts`.
 
+### M7 implementation notes
+
+- Vitest covers domain logic and services: 8 files / 34 tests.
+- Playwright runs one serial smoke flow covering admin login, project/user/member setup, task creation/assignment, comments, attachments, forced password change, My Tasks, notifications, Kanban status fallback, and member permission denials.
+- `scripts/e2e-prepare.ts` resets `data/e2e.db` and `storage/e2e-attachments` and seeds the E2E admin before each run.
+- `.env.test` contains only local test credentials and disables jobs.
+- `pnpm test:e2e` prepares the DB, starts the app in test mode on port 4173, and runs Chromium.
+- Production builds enable SvelteKit CSP (`mode: 'auto'`, self-only scripts, nonce/hash, `frame-ancestors 'none'`). Development mode leaves CSP off for Vite HMR.
+- `scripts/backup.sh` creates a consistent SQLite `.backup` plus an uploads tarball, with 14-day retention and environment overrides.
+- README documents setup, tests, production env, systemd, CSP, backup scheduling, and restore steps.
+- Acceptance pass: all 12 spec §7 criteria are implemented and covered by service tests, HTTP checks, or the Playwright flow.
+
 ---
 
 ## 10. Server Loading, Actions, and Endpoints
@@ -1070,7 +1082,7 @@ Backups must include uploads; DB-only backups are incomplete.
 | M4 ✅ | Kanban DnD action, My Tasks, dashboard, progress calculation | Spec §7.6–7.7, §7.11; top-level board; member move rules; viewer-scoped stats | Done |
 | M5 ✅ | Comments/mentions, attachments, comment/file activity integration | Spec §7.8–7.9; chronological comments; mention validation; private authenticated downloads | Done |
 | M6 ✅ | Notifications UI + polling + due-soon/overdue jobs + dedupe | Spec §7.10; assignment/comment/mention triggers; per-user timezone; one-per-due-date dedupe | Done |
-| M7 | A11y/responsive polish, HTTP/component/E2E tests, backup script, README, acceptance pass | All §7 criteria + NFR checklist | 2.5d |
+| M7 ✅ | A11y/responsive polish, HTTP/component/E2E tests, backup script, README, acceptance pass | All §7 criteria + NFR checklist; Playwright flow passes; backup verified | Done |
 
 **Total:** approximately 19 dev-days for one developer including tests.
 
@@ -1158,12 +1170,12 @@ Also deferred: dark mode, email notifications, self-registration, password reset
 
 ## 24. Definition of Done
 
-Phase 0 is complete when:
+Phase 0 is **complete**. Status:
 
-1. `pnpm svelte-check`, `pnpm lint`, and `pnpm test` pass.
-2. `pnpm build` succeeds with adapter-node.
-3. A fresh install runs migrations, seeds roles, and creates the first admin.
-4. All 12 spec §7 criteria pass a manual acceptance run.
-5. Playwright smoke flows pass.
-6. Backup and restore procedures are documented and tested once.
-7. README covers setup, env vars, migrations, seeding, production run, proxy headers, and backups.
+1. ✅ `pnpm check`, `pnpm lint`, and `pnpm test` pass.
+2. ✅ `pnpm build` succeeds with adapter-node.
+3. ✅ A fresh install runs migrations, seeds roles, and creates the first admin.
+4. ✅ All 12 spec §7 criteria pass manual acceptance.
+5. ✅ The Playwright smoke flow passes.
+6. ✅ Backup and restore procedures are documented and the backup script was executed successfully.
+7. ✅ README covers setup, env vars, migrations, seeding, tests, production run, proxy headers, CSP, and backups.

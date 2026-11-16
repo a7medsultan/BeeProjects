@@ -23,7 +23,8 @@
 		"format": "prettier --write .",
 		"test": "vitest run --passWithNoTests",
 		"test:watch": "vitest",
-		"test:e2e": "playwright test",
+		"test:e2e": "node --env-file=.env.test --import tsx scripts/e2e-prepare.ts && playwright test",
+		"test:e2e:ui": "node --env-file=.env.test --import tsx scripts/e2e-prepare.ts && playwright test --ui",
 		"db:migrate": "node --env-file=.env --import tsx scripts/migrate.ts",
 		"db:seed": "node --env-file=.env --import tsx scripts/seed.ts"
 	},

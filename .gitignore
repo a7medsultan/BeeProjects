@@ -11,6 +11,7 @@ node_modules
 # Local data
 /data
 /storage
+/backups
 /playwright-report
 /test-results
 
