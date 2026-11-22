@@ -214,27 +214,279 @@ Production builds enable a SvelteKit CSP with self-only scripts, nonces/hashes,
 and `frame-ancestors 'none'`. `X-Frame-Options`, `nosniff`, and a strict
 referrer policy are also set by the app.
 
-Example systemd unit:
+For a complete Ubuntu VPS deployment with Node, systemd, Caddy, TLS, updates,
+and scheduled backups, see the VPS section below.
+
+## Deploy on a VPS (Ubuntu + systemd + Caddy)
+
+These instructions assume:
+
+- Ubuntu 24.04 LTS (22.04 also works)
+- A domain such as `projects.example.com` with an A/AAAA record pointing at the VPS
+- SSH access with a sudo-capable user
+- App directory `/srv/beeprojects`
+- One app instance (SQLite and the in-process jobs assume a single writer)
+
+### 1. DNS and firewall
+
+Create the DNS record first, then allow only SSH and HTTP(S):
+
+```bash
+sudo apt update
+sudo apt install -y curl git build-essential python3 sqlite3 caddy ufw
+
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+Do **not** expose port 3000 publicly. The app binds to `127.0.0.1` and Caddy
+proxies to it.
+
+### 2. Install Node.js and pnpm
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+node --version        # must be >= 22.17
+sudo npm install -g pnpm@9.12.0
+pnpm --version
+```
+
+`build-essential` and `python3` are needed if `better-sqlite3` cannot use a
+prebuilt binary.
+
+### 3. Create the service user and app directory
+
+```bash
+sudo useradd --system --create-home --home-dir /srv/beeprojects \
+  --shell /usr/sbin/nologin beeprojects
+
+sudo -u beeprojects git clone <YOUR_REPOSITORY_URL> /srv/beeprojects
+```
+
+If the repository is private, add a deploy key for the `beeprojects` user or
+copy the app over SSH with `rsync`:
+
+```bash
+sudo rsync -a --exclude node_modules --exclude .svelte-kit --exclude build \
+  --exclude data --exclude storage --exclude .env ./ /srv/beeprojects/
+sudo chown -R beeprojects:beeprojects /srv/beeprojects
+```
+
+### 4. Configure production environment
+
+```bash
+sudo -u beeprojects cp /srv/beeprojects/.env.example /srv/beeprojects/.env
+sudo -u beeprojects nano /srv/beeprojects/.env
+sudo chmod 600 /srv/beeprojects/.env
+sudo chown beeprojects:beeprojects /srv/beeprojects/.env
+```
+
+Set at least:
+
+```dotenv
+PORT=3000
+HOST=127.0.0.1
+ORIGIN=https://projects.example.com
+
+DATABASE_PATH=./data/app.db
+UPLOAD_DIR=./storage/attachments
+BODY_SIZE_LIMIT=12M
+
+SESSION_TTL_DAYS=30
+JOBS_ENABLED=true
+
+PROTOCOL_HEADER=x-forwarded-proto
+HOST_HEADER=x-forwarded-host
+ADDRESS_HEADER=x-forwarded-for
+XFF_DEPTH=1
+
+ADMIN_NAME=...
+ADMIN_EMAIL=...
+ADMIN_PASSWORD=...
+```
+
+`ORIGIN` must exactly match the public URL, including the scheme and without a
+trailing slash. `BODY_SIZE_LIMIT` is required for 10 MB attachments; the
+adapter-node default is 512 KB.
+
+### 5. Install, build, and seed
+
+```bash
+cd /srv/beeprojects
+
+sudo -u beeprojects pnpm install --frozen-lockfile
+sudo -u beeprojects pnpm build
+sudo -u beeprojects pnpm db:seed
+sudo -u beeprojects mkdir -p /srv/beeprojects/data \
+  /srv/beeprojects/storage/attachments /srv/beeprojects/backups
+```
+
+`db:seed` applies migrations and creates the first admin. It only creates a user
+when the users table is empty.
+
+The app also runs migrations automatically on startup via the `init` hook.
+
+### 6. Create the systemd service
+
+Create `/etc/systemd/system/beeprojects.service`:
 
 ```ini
 [Unit]
 Description=BeeProjects
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=beeprojects
+Group=beeprojects
 WorkingDirectory=/srv/beeprojects
 EnvironmentFile=/srv/beeprojects/.env
+Environment=NODE_ENV=production
 ExecStart=/usr/bin/node build
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/beeprojects/data /srv/beeprojects/storage
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Put Caddy or nginx in front for TLS and compression.
+`ProtectSystem=strict` makes the app read-only except the two `ReadWritePaths`.
+SQLite and uploads stay writable; the rest of the filesystem does not.
+
+Start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now beeprojects
+sudo systemctl status beeprojects
+curl http://127.0.0.1:3000/health
+```
+
+If Node is not at `/usr/bin/node`, set `ExecStart` to the path from
+`command -v node`.
+
+### 7. Put Caddy in front
+
+Replace `/etc/caddy/Caddyfile` with:
+
+```caddyfile
+projects.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+```
+
+Then:
+
+```bash
+sudo caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
+sudo systemctl enable --now caddy
+sudo systemctl reload caddy
+```
+
+Caddy obtains and renews TLS automatically. It also forwards
+`X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For`, which match the
+headers configured in `.env`.
+
+Verify:
+
+```bash
+curl https://projects.example.com/health
+```
+
+Open the URL, sign in with the seeded admin, and change the password from the
+profile page immediately. After the first login you can remove or replace
+`ADMIN_PASSWORD` in `.env`; it is only used by seeding.
+
+If you use nginx instead, set `client_max_body_size 12m;` and forward
+`Host`, `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For` to
+`http://127.0.0.1:3000`.
+
+### 8. Deploying updates
+
+```bash
+cd /srv/beeprojects
+
+sudo -u beeprojects ./scripts/backup.sh
+sudo -u beeprojects git pull --ff-only
+sudo -u beeprojects pnpm install --frozen-lockfile
+sudo -u beeprojects pnpm build
+sudo systemctl restart beeprojects
+
+curl http://127.0.0.1:3000/health
+```
+
+Migrations run on startup. There is a brief restart window; this is acceptable
+for a small team. Back up before every deploy.
+
+Rollback:
+
+1. Stop the service.
+2. Restore the previous database and uploads using the backup procedure.
+3. Check out the previous release commit.
+4. Reinstall, rebuild, and restart.
+
+### 9. Backups on the VPS
+
+Run the backup script as the app user:
+
+```bash
+sudo -u beeprojects /srv/beeprojects/scripts/backup.sh
+```
+
+Schedule it with the service user's crontab:
+
+```bash
+sudo crontab -u beeprojects -e
+```
+
+```cron
+15 2 * * * cd /srv/beeprojects && ./scripts/backup.sh >> /srv/beeprojects/backups/backup.log 2>&1
+```
+
+See the Backups section below for retention, restore steps, and offsite copies.
+
+### 10. Logs and troubleshooting
+
+```bash
+sudo journalctl -u beeprojects -f
+sudo journalctl -u caddy -f
+curl http://127.0.0.1:3000/health
+```
+
+| Symptom                                          | Check                                                                             |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `502 Bad Gateway`                                | Service running? `HOST`/`PORT` match the proxy target?                            |
+| `Cross-site POST form submissions are forbidden` | `ORIGIN`, `PROTOCOL_HEADER`, `HOST_HEADER`                                        |
+| `413` or large uploads rejected                  | `BODY_SIZE_LIMIT=12M` and proxy body limit (`client_max_body_size 12m` for nginx) |
+| `database is locked`                             | More than one app instance is running                                             |
+| Permission errors under `data/` or `storage/`    | Files must be owned by `beeprojects`                                              |
+| Native module build failure                      | Install `build-essential python3`, then reinstall                                 |
+| Login redirects loop                             | Cookie/TLS/proxy configuration; check `ORIGIN` and HTTPS                          |
+
+### 11. VPS security checklist
+
+- Use SSH keys; disable password SSH login.
+- Keep UFW enabled and only expose 22/80/443.
+- Never expose port 3000.
+- Keep `.env` at mode `600` and never commit it.
+- Change the seeded admin password immediately.
+- Keep the OS and Node patched.
+- Copy backups off the VPS (another host or object storage).
+- Run a single instance; SQLite and in-process jobs are not multi-node.
+- Consider fail2ban and automatic security updates for the SSH endpoint.
 
 ## Backups
 
