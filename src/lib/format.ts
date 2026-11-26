@@ -12,14 +12,22 @@ export function formatDateTime(
 
 	try {
 		return new Intl.DateTimeFormat(localeForIntl(locale), {
-			dateStyle: 'medium',
-			timeStyle: 'short',
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit',
+			calendar: 'gregory',
 			timeZone: timezone
 		}).format(date);
 	} catch {
 		return new Intl.DateTimeFormat(localeForIntl(locale), {
-			dateStyle: 'medium',
-			timeStyle: 'short',
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit',
+			calendar: 'gregory',
 			timeZone: 'UTC'
 		}).format(date);
 	}
@@ -32,7 +40,10 @@ export function formatDate(value: string | null | undefined, locale: Locale = 'e
 	if (Number.isNaN(date.getTime())) return '—';
 
 	return new Intl.DateTimeFormat(localeForIntl(locale), {
-		dateStyle: 'medium',
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		calendar: 'gregory',
 		timeZone: 'UTC'
 	}).format(date);
 }

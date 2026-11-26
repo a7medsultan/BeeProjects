@@ -8,6 +8,8 @@ export type TranslationParams = Record<string, string | number | null | undefine
 const dictionaries: Record<Locale, Record<string, string>> = { en, ar };
 
 const SERVER_MESSAGE_KEYS: Record<string, MessageKey> = {
+	'Not Found': 'error.notFound',
+	'Internal Error': 'error.server',
 	'Admin access required': 'errors.adminRequired',
 	'Admin access required.': 'errors.adminRequired',
 	'Only admins and project managers can create projects': 'errors.createProjectForbidden',
@@ -48,6 +50,10 @@ const SERVER_MESSAGE_KEYS: Record<string, MessageKey> = {
 	'Select an active user.': 'errors.inactiveUser',
 	'The project owner cannot be removed.': 'errors.ownerRemove',
 	'This user is not a project member.': 'errors.notProjectMember',
+	'Reassign this member’s open tasks before removing them.': 'errors.openTasks',
+	'Subtasks can only be added to a top-level task in this project.': 'errors.subtaskParent',
+	'Unsupported file type. Allowed: PDF, Office documents, text, CSV, images, and ZIP.':
+		'errors.unsupportedFile',
 	'Mentions must be active members of this project.': 'errors.mentionMembers',
 	'Assignees must be active members of this project.': 'errors.assigneesMembers',
 	'The uploaded file is empty.': 'errors.fileEmpty',

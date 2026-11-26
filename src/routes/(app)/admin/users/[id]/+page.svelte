@@ -3,11 +3,14 @@
 	import { ArrowLeft, Check, Copy, KeyRound, ShieldAlert, UserCheck, UserX } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { ROLE_LABELS } from '#lib/constants.ts';
 	import { formatDateTime } from '#lib/format.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
+	import { ROLE_KEYS } from '#lib/i18n/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+
+	const { t, locale } = useI18n();
 
 	const {
 		form: editForm,
@@ -54,7 +57,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.managedUser.name} · Admin · BeeProjects</title>
+	<title>{t('admin.users.edit.pageTitle', { name: data.managedUser.name })}</title>
 </svelte:head>
 
 <div class="mx-auto max-w-4xl space-y-6">
@@ -62,8 +65,8 @@
 		href={resolve('/(app)/admin/users')}
 		class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
 	>
-		<ArrowLeft class="h-4 w-4" />
-		Back to users
+		<ArrowLeft class="h-4 w-4 rtl:-scale-x-100" />
+		{t('admin.users.edit.back')}
 	</a>
 
 	<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -81,7 +84,7 @@
 					<p class="truncate text-sm text-slate-500">{data.managedUser.email}</p>
 					<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
 						<span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
-							{ROLE_LABELS[data.managedUser.role]}
+							{t(ROLE_KEYS[data.managedUser.role])}
 						</span>
 						<span
 							class={[
@@ -91,16 +94,16 @@
 									: 'bg-slate-100 text-slate-600'
 							]}
 						>
-							{data.managedUser.isActive ? 'Active' : 'Inactive'}
+							{data.managedUser.isActive ? t('common.active') : t('common.inactive')}
 						</span>
 						{#if data.managedUser.mustChangePassword}
 							<span class="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
-								Temp password
+								{t('admin.users.tempPasswordBadge')}
 							</span>
 						{/if}
 						{#if isSelf}
 							<span class="rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700">
-								Your account
+								{t('admin.users.edit.yourAccount')}
 							</span>
 						{/if}
 					</div>
@@ -109,13 +112,17 @@
 
 			<dl class="grid grid-cols-2 gap-3 text-sm">
 				<div>
-					<dt class="text-xs tracking-wide text-slate-400 uppercase">Projects</dt>
+					<dt class="text-xs tracking-wide text-slate-400 uppercase">
+						{t('admin.users.edit.projects')}
+					</dt>
 					<dd class="mt-0.5 font-medium text-slate-800">{data.managedUser.ownedProjects}</dd>
 				</div>
 				<div>
-					<dt class="text-xs tracking-wide text-slate-400 uppercase">Last login</dt>
+					<dt class="text-xs tracking-wide text-slate-400 uppercase">
+						{t('admin.users.edit.lastLoginLabel')}
+					</dt>
 					<dd class="mt-0.5 font-medium text-slate-800">
-						{formatDateTime(data.managedUser.lastLoginAt, timezone)}
+						{formatDateTime(data.managedUser.lastLoginAt, timezone, locale)}
 					</dd>
 				</div>
 			</dl>
@@ -143,10 +150,13 @@
 	{#if resetPassword}
 		<div class="rounded-xl border border-amber-200 bg-amber-50 p-4" role="status">
 			<p class="text-sm font-semibold text-amber-900">
-				Temporary password for {resetEmail}
+				{t('admin.users.edit.resetTempFor', { email: resetEmail })}
 			</p>
 			<div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-				<code class="flex-1 rounded-lg bg-white/80 px-3 py-2 font-mono text-sm text-slate-900">
+				<code
+					dir="ltr"
+					class="ltr-text flex-1 rounded-lg bg-white/80 px-3 py-2 font-mono text-sm text-slate-900"
+				>
 					{resetPassword}
 				</code>
 				<button
@@ -156,25 +166,22 @@
 				>
 					{#if copied}
 						<Check class="h-4 w-4" />
-						Copied
+						{t('admin.users.new.copied')}
 					{:else}
 						<Copy class="h-4 w-4" />
-						Copy
+						{t('admin.users.new.copy')}
 					{/if}
 				</button>
 			</div>
 			<p class="mt-2 text-xs text-amber-800">
-				Shown once. The user has been signed out everywhere and must change it at next sign-in.
+				{t('admin.users.edit.shownOnce')}
 			</p>
 		</div>
 	{/if}
 
 	<section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-		<h3 class="font-semibold text-slate-900">Account details</h3>
-		<p class="mt-1 text-sm text-slate-500">
-			Email changes take effect immediately. Role changes are subject to ownership and last-admin
-			guards.
-		</p>
+		<h3 class="font-semibold text-slate-900">{t('admin.users.edit.accountDetails')}</h3>
+		<p class="mt-1 text-sm text-slate-500">{t('admin.users.edit.accountDetailsHelp')}</p>
 
 		{#if $message}
 			<p
@@ -199,11 +206,14 @@
 			class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2"
 		>
 			<div>
-				<label for="name" class="mb-1.5 block text-sm font-medium text-slate-700">Name</label>
+				<label for="name" class="mb-1.5 block text-sm font-medium text-slate-700"
+					>{t('profile.name')}</label
+				>
 				<input
 					id="name"
 					name="name"
 					type="text"
+					dir="auto"
 					bind:value={$editForm.name}
 					aria-invalid={$errors.name ? 'true' : undefined}
 					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
@@ -214,11 +224,14 @@
 			</div>
 
 			<div>
-				<label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+				<label for="email" class="mb-1.5 block text-sm font-medium text-slate-700"
+					>{t('profile.email')}</label
+				>
 				<input
 					id="email"
 					name="email"
 					type="email"
+					dir="ltr"
 					bind:value={$editForm.email}
 					aria-invalid={$errors.email ? 'true' : undefined}
 					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
@@ -229,28 +242,30 @@
 			</div>
 
 			<div>
-				<label for="role" class="mb-1.5 block text-sm font-medium text-slate-700">Role</label>
+				<label for="role" class="mb-1.5 block text-sm font-medium text-slate-700"
+					>{t('profile.role')}</label
+				>
 				<select
 					id="role"
 					name="role"
 					bind:value={$editForm.role}
 					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 				>
-					<option value="member">Member</option>
-					<option value="project_manager">Project Manager</option>
-					<option value="admin">Admin</option>
+					<option value="member">{t('enum.role.member')}</option>
+					<option value="project_manager">{t('enum.role.project_manager')}</option>
+					<option value="admin">{t('enum.role.admin')}</option>
 				</select>
 				{#if $errors.role}
 					<p class="mt-1.5 text-sm text-rose-600">{$errors.role[0]}</p>
 				{/if}
 				{#if isSelf}
-					<p class="mt-1.5 text-xs text-slate-500">You cannot change your own role.</p>
+					<p class="mt-1.5 text-xs text-slate-500">{t('admin.users.edit.cannotChangeOwnRole')}</p>
 				{/if}
 			</div>
 
 			<div>
 				<label for="timezone" class="mb-1.5 block text-sm font-medium text-slate-700">
-					Timezone
+					{t('profile.timezone')}
 				</label>
 				<select
 					id="timezone"
@@ -269,10 +284,9 @@
 
 			{#if hasOwnedProjects}
 				<p class="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 sm:col-span-2">
-					This user owns {data.managedUser.ownedProjects} non-archived project{data.managedUser
-						.ownedProjects === 1
-						? ''
-						: 's'}. Ownership must be transferred before demoting to Member or deactivating.
+					{t('admin.users.edit.ownedProjectsWarning', {
+						count: data.managedUser.ownedProjects
+					})}
 				</p>
 			{/if}
 
@@ -282,7 +296,7 @@
 					disabled={$submitting}
 					class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
 				>
-					{$submitting ? 'Saving…' : 'Save changes'}
+					{$submitting ? t('common.saving') : t('common.saveChanges')}
 				</button>
 			</div>
 		</form>
@@ -294,10 +308,8 @@
 				<ShieldAlert class="h-5 w-5" />
 			</span>
 			<div>
-				<h3 class="font-semibold text-slate-900">Account actions</h3>
-				<p class="mt-1 text-sm text-slate-500">
-					Password resets and deactivations sign the user out of all sessions.
-				</p>
+				<h3 class="font-semibold text-slate-900">{t('admin.users.edit.accountActions')}</h3>
+				<p class="mt-1 text-sm text-slate-500">{t('admin.users.edit.accountActionsHelp')}</p>
 			</div>
 		</div>
 
@@ -305,22 +317,18 @@
 			<div class="rounded-lg border border-slate-200 p-4">
 				<div class="flex items-center gap-2">
 					<KeyRound class="h-4 w-4 text-slate-400" />
-					<h4 class="text-sm font-semibold text-slate-900">Reset password</h4>
+					<h4 class="text-sm font-semibold text-slate-900">
+						{t('admin.users.edit.resetPassword')}
+					</h4>
 				</div>
-				<p class="mt-1 text-xs leading-5 text-slate-500">
-					Generates a temporary password and forces a change at next sign-in.
-				</p>
+				<p class="mt-1 text-xs leading-5 text-slate-500">{t('admin.users.edit.resetHelp')}</p>
 				{#if canReset}
 					<form
 						method="POST"
 						action="?/resetPassword"
 						class="mt-3"
 						onsubmit={(event) => {
-							if (
-								!confirm(
-									`Reset the password for ${data.managedUser.name}? They will be signed out.`
-								)
-							) {
+							if (!confirm(t('admin.users.edit.resetConfirm', { name: data.managedUser.name }))) {
 								event.preventDefault();
 							}
 						}}
@@ -330,12 +338,12 @@
 							class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
 						>
 							<KeyRound class="h-4 w-4" />
-							Reset password
+							{t('admin.users.edit.resetPassword')}
 						</button>
 					</form>
 				{:else}
 					<p class="mt-3 text-xs text-slate-500">
-						Use the profile page to change your own password.
+						{t('server.resetOwnPassword')}
 					</p>
 				{/if}
 			</div>
@@ -344,16 +352,20 @@
 				<div class="flex items-center gap-2">
 					{#if data.managedUser.isActive}
 						<UserX class="h-4 w-4 text-rose-500" />
-						<h4 class="text-sm font-semibold text-slate-900">Deactivate account</h4>
+						<h4 class="text-sm font-semibold text-slate-900">
+							{t('admin.users.edit.deactivateHeading')}
+						</h4>
 					{:else}
 						<UserCheck class="h-4 w-4 text-emerald-500" />
-						<h4 class="text-sm font-semibold text-slate-900">Reactivate account</h4>
+						<h4 class="text-sm font-semibold text-slate-900">
+							{t('admin.users.edit.reactivateHeading')}
+						</h4>
 					{/if}
 				</div>
 
 				{#if data.managedUser.isActive}
 					<p class="mt-1 text-xs leading-5 text-slate-500">
-						The user cannot sign in and all sessions are revoked. Historical records remain.
+						{t('admin.users.edit.deactivateHelp')}
 					</p>
 					{#if canDeactivate}
 						<form
@@ -361,7 +373,9 @@
 							action="?/deactivate"
 							class="mt-3"
 							onsubmit={(event) => {
-								if (!confirm(`Deactivate ${data.managedUser.name}?`)) {
+								if (
+									!confirm(t('admin.users.edit.deactivateConfirm', { name: data.managedUser.name }))
+								) {
 									event.preventDefault();
 								}
 							}}
@@ -371,21 +385,19 @@
 								class="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
 							>
 								<UserX class="h-4 w-4" />
-								Deactivate
+								{t('admin.users.edit.deactivate')}
 							</button>
 						</form>
 					{:else if isSelf}
-						<p class="mt-3 text-xs text-slate-500">You cannot deactivate your own account.</p>
+						<p class="mt-3 text-xs text-slate-500">{t('errors.cannotDeactivateSelf')}</p>
 					{:else if isOnlyActiveAdmin}
-						<p class="mt-3 text-xs text-rose-600">The last active admin cannot be deactivated.</p>
+						<p class="mt-3 text-xs text-rose-600">{t('errors.lastAdminDeactivate')}</p>
 					{:else if hasOwnedProjects}
-						<p class="mt-3 text-xs text-rose-600">
-							Transfer ownership of this user’s projects first.
-						</p>
+						<p class="mt-3 text-xs text-rose-600">{t('errors.transferOwnership')}</p>
 					{/if}
 				{:else}
 					<p class="mt-1 text-xs leading-5 text-slate-500">
-						Reactivating restores sign-in access. The user keeps their current role and timezone.
+						{t('admin.users.edit.reactivateHelp')}
 					</p>
 					<form method="POST" action="?/reactivate" class="mt-3">
 						<button
@@ -393,7 +405,7 @@
 							class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
 						>
 							<UserCheck class="h-4 w-4" />
-							Reactivate
+							{t('admin.users.edit.activate')}
 						</button>
 					</form>
 				{/if}

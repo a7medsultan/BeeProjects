@@ -8,13 +8,10 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { dragHandle, dragHandleZone } from 'svelte-dnd-action';
 	import { toast } from 'svelte-sonner';
-	import {
-		TASK_PRIORITY_CLASSES,
-		TASK_PRIORITY_LABELS,
-		TASK_STATUSES,
-		TASK_STATUS_LABELS
-	} from '#lib/constants.ts';
+	import { TASK_PRIORITY_CLASSES, TASK_STATUSES } from '#lib/constants.ts';
 	import { formatDate, isDueSoon } from '#lib/format.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
+	import { TASK_PRIORITY_KEYS, TASK_STATUS_KEYS } from '#lib/i18n/labels.ts';
 	import type { TaskListItem, TaskStatus } from '#lib/types.ts';
 	import type { PageProps } from './$types';
 
@@ -26,6 +23,8 @@
 	type Columns = Record<TaskStatus, TaskListItem[]>;
 
 	let { data }: PageProps = $props();
+
+	const { t, locale } = useI18n();
 
 	function emptyColumns(): Columns {
 		return {
@@ -78,7 +77,7 @@
 			if (canMoveTask(task)) {
 				void moveTask(task.id, status);
 			} else {
-				toast.error('You cannot move this task.');
+				toast.error(t('tasks.board.cannotMove'));
 				void refreshAll();
 			}
 		}
@@ -104,16 +103,16 @@
 
 			if (result.type === 'failure') {
 				const message = (result.data as { error?: string } | undefined)?.error;
-				toast.error(message ?? 'Could not move the task.');
+				toast.error(message ?? t('tasks.board.couldNotMove'));
 				await refreshAll();
 			} else if (result.type === 'error') {
-				toast.error(result.error.message || 'Could not move the task.');
+				toast.error(result.error.message || t('tasks.board.couldNotMove'));
 				await refreshAll();
 			} else {
 				await refreshAll();
 			}
 		} catch {
-			toast.error('Could not move the task.');
+			toast.error(t('tasks.board.couldNotMove'));
 			await refreshAll();
 		} finally {
 			moving.delete(taskId);
@@ -124,7 +123,7 @@
 		if (task.status === status) return;
 
 		if (!canMoveTask(task)) {
-			toast.error('You cannot move this task.');
+			toast.error(t('tasks.board.cannotMove'));
 			return;
 		}
 
@@ -135,16 +134,16 @@
 </script>
 
 <svelte:head>
-	<title>Board · {data.project.name} · BeeProjects</title>
+	<title>{t('tasks.board.pageTitle', { project: data.project.name })}</title>
 </svelte:head>
 
 <div class="space-y-5">
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h2 class="text-xl font-semibold tracking-tight text-slate-900">Kanban board</h2>
-			<p class="mt-1 text-sm text-slate-500">
-				Drag top-level tasks between status columns, or use each card’s status menu.
-			</p>
+			<h2 class="text-xl font-semibold tracking-tight text-slate-900">
+				{t('tasks.board.title')}
+			</h2>
+			<p class="mt-1 text-sm text-slate-500">{t('tasks.board.subtitle')}</p>
 		</div>
 		{#if data.permissions.canManage}
 			<a
@@ -152,14 +151,14 @@
 				class="inline-flex items-center gap-2 self-start rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:self-auto"
 			>
 				<Plus class="h-4 w-4" />
-				New task
+				{t('tasks.board.newTask')}
 			</a>
 		{/if}
 	</div>
 
 	{#if data.permissions.isArchived}
 		<p class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm text-slate-700">
-			Archived projects are read-only. Unarchive the project to move tasks.
+			{t('tasks.board.archivedNotice')}
 		</p>
 	{/if}
 
@@ -170,7 +169,7 @@
 					class="flex w-72 shrink-0 flex-col rounded-xl border border-slate-200 bg-slate-50/80"
 				>
 					<header class="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
-						<h3 class="text-sm font-semibold text-slate-800">{TASK_STATUS_LABELS[status]}</h3>
+						<h3 class="text-sm font-semibold text-slate-800">{t(TASK_STATUS_KEYS[status])}</h3>
 						<span class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-500">
 							{columns[status].length}
 						</span>
@@ -200,8 +199,8 @@
 										<button
 											use:dragHandle
 											type="button"
-											aria-label={`Drag ${task.title}`}
-											class="mt-0.5 -ml-1 inline-flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
+											aria-label={t('common.dragTask', { title: task.title })}
+											class="-ms-1 mt-0.5 inline-flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
 										>
 											<GripVertical class="h-4 w-4" />
 										</button>
@@ -210,7 +209,8 @@
 									<div class="min-w-0 flex-1">
 										<a
 											href={resolve('/(app)/tasks/[id]', { id: task.id })}
-											class="block text-sm leading-5 font-medium text-slate-800 hover:text-indigo-700"
+											dir="auto"
+											class="user-text block text-sm leading-5 font-medium text-slate-800 hover:text-indigo-700"
 										>
 											{task.title}
 										</a>
@@ -222,13 +222,16 @@
 													TASK_PRIORITY_CLASSES[task.priority]
 												]}
 											>
-												{TASK_PRIORITY_LABELS[task.priority]}
+												{t(TASK_PRIORITY_KEYS[task.priority])}
 											</span>
 											{#if task.subtaskCount > 0}
 												<span
 													class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
 												>
-													{task.completedSubtaskCount}/{task.subtaskCount} subtasks
+													{t('common.subtaskRatio', {
+														completed: task.completedSubtaskCount,
+														total: task.subtaskCount
+													})}
 												</span>
 											{/if}
 										</div>
@@ -245,11 +248,11 @@
 															: 'text-slate-500'
 												]}
 											>
-												{formatDate(task.dueDate)}
+												{formatDate(task.dueDate, locale)}
 												{#if task.isOverdue}
-													· Overdue
+													· {t('tasks.board.overdue')}
 												{:else if task.status !== 'Done' && isDueSoon(task.dueDate, data.user?.timezone ?? 'UTC')}
-													· Due soon
+													· {t('tasks.board.dueSoon')}
 												{/if}
 											</p>
 										{/if}
@@ -258,7 +261,7 @@
 											{#if task.assignees.length > 0}
 												{task.assignees.map((assignee) => assignee.name).join(', ')}
 											{:else}
-												Unassigned
+												{t('common.unassigned')}
 											{/if}
 										</p>
 									</div>
@@ -266,7 +269,9 @@
 
 								{#if canMoveTask(task)}
 									<div class="mt-2 border-t border-slate-100 pt-2">
-										<label class="sr-only" for={`status-${task.id}`}>Move task status</label>
+										<label class="sr-only" for={`status-${task.id}`}>
+											{t('tasks.board.moveStatus')}
+										</label>
 										<select
 											id={`status-${task.id}`}
 											value={task.status}
@@ -275,7 +280,7 @@
 											class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 										>
 											{#each TASK_STATUSES as option (option)}
-												<option value={option}>{TASK_STATUS_LABELS[option]}</option>
+												<option value={option}>{t(TASK_STATUS_KEYS[option])}</option>
 											{/each}
 										</select>
 									</div>
@@ -285,7 +290,9 @@
 					</ul>
 
 					{#if columns[status].length === 0}
-						<div class="px-3 pt-1 pb-4 text-center text-xs text-slate-400">Drop tasks here</div>
+						<div class="px-3 pt-1 pb-4 text-center text-xs text-slate-400">
+							{t('tasks.board.dropHere')}
+						</div>
 					{/if}
 				</section>
 			{/each}

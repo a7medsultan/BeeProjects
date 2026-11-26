@@ -150,6 +150,12 @@ describe('notification service', () => {
 		expect(memberNotifications.some((item) => item.type === 'task_assigned')).toBe(true);
 		expect(otherNotifications.some((item) => item.type === 'task_assigned')).toBe(true);
 		expect(adminNotifications.some((item) => item.type === 'task_assigned')).toBe(false);
+		const assignment = memberNotifications.find((item) => item.type === 'task_assigned');
+		expect(assignment?.payload).toMatchObject({
+			variant: 'assigned',
+			actorName: 'Admin',
+			taskTitle: 'Notify assignments'
+		});
 
 		db.exec('DELETE FROM notifications');
 
@@ -188,6 +194,12 @@ describe('notification service', () => {
 		expect(memberNotifications.some((item) => item.type === 'mention')).toBe(true);
 		expect(memberNotifications.some((item) => item.type === 'comment_added')).toBe(false);
 		expect(otherNotifications.some((item) => item.type === 'comment_added')).toBe(true);
+		const mention = memberNotifications.find((item) => item.type === 'mention');
+		expect(mention?.payload).toMatchObject({
+			actorName: 'Admin',
+			taskTitle: 'Comment notifications',
+			excerpt: '@Member could you check this?'
+		});
 
 		db.close();
 	});
@@ -208,6 +220,10 @@ describe('notification service', () => {
 		let notifications = listNotifications(db, member.id, false, 1, 50).items;
 		expect(notifications.filter((item) => item.type === 'due_soon')).toHaveLength(1);
 		expect(notifications.filter((item) => item.type === 'overdue')).toHaveLength(1);
+		expect(notifications.find((item) => item.type === 'due_soon')?.payload).toMatchObject({
+			taskTitle: 'Due tomorrow',
+			projectName: 'Notification project'
+		});
 
 		runDeadlineNotifications(db, now);
 		notifications = listNotifications(db, member.id, false, 1, 50).items;

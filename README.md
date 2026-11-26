@@ -42,14 +42,15 @@ The full implementation plan lives in
 - Notification bell with unread badge, recent dropdown, 30-second polling, and focus refresh
 - Notifications page with unread filtering, mark read, mark all read, and click-through to the task
 - Hourly deadline jobs with per-user timezone handling and dedupe keys
-- Playwright end-to-end smoke test covering the full admin → project → task → member flow
+- Playwright end-to-end smoke tests covering the full admin → project → task → member flow in English and a dedicated Arabic/RTL flow
+- Arabic + RTL localization with per-user language preference, cookie-based anonymous language, localized validation and notifications, and a self-hosted Arabic font
 - Production CSP, security headers, backup script, and documented restore procedure
 - Task detail page with inline editing, subtasks, comments, attachments, and activity
 - Member-assignee edit permissions with manager-only assignment control
 - Application shell with role-aware navigation
 - `/health` endpoint and security headers
 
-Phase 0 is complete. Phase 1 has not been started; review
+Phase 0 is complete and Arabic/RTL localization is available. Review
 [`Documentation/specs.md`](Documentation/specs.md) before planning further scope.
 
 ## Requirements
@@ -146,12 +147,11 @@ pnpm test:e2e                           # fresh E2E DB + Playwright
 
 - `pnpm test:e2e` resets `data/e2e.db` and `storage/e2e-attachments`, seeds
   `e2e-admin@example.com`, starts the app in test mode on port 4173, runs the
-  Playwright smoke flow, and leaves artifacts under `test-results/`.
+  Playwright flows, and leaves artifacts under `test-results/`.
 - `.env.test` contains only local test credentials.
-- The E2E flow covers admin login, project creation, member creation and
-  assignment, task creation, comments, attachment upload/download, forced
-  password change, My Tasks, notifications, Kanban status fallback, and
-  member permission denials.
+- The E2E flows cover the English happy path and the Arabic/RTL path:
+  language switching, localized validation, RTL navigation, project screens,
+  mobile navigation, and switching back to English.
 - CI should run `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm build`, then
   `pnpm test:e2e`.
 
@@ -223,6 +223,57 @@ referrer policy are also set by the app.
 
 For a complete Ubuntu VPS deployment with Node, systemd, a reverse proxy, TLS,
 updates, and scheduled backups, see the VPS section below.
+
+## Languages and RTL
+
+The app ships with **English** (default) and **Arabic**:
+
+- Language switcher on the login page, app header, and profile page.
+- Logged-in preference is stored in `users.locale`.
+- Anonymous selection is stored in the `bp_locale` cookie.
+- First-time visitors without a preference or cookie follow
+  `Accept-Language`, falling back to English.
+- Arabic renders with `dir="rtl"` on `<html>` and a self-hosted Noto Sans
+  Arabic font. English stays LTR with Inter.
+- Arabic dates use Gregorian calendars, Arabic month names, and Western digits
+  (`0-9`). User-entered content keeps its own direction.
+- No URL prefix is used; `/projects` works the same in both languages.
+
+User-entered content is never machine-translated. Names, project titles, task
+titles, descriptions, comments, and attachment names are displayed in their
+original language with RTL-safe direction isolation.
+
+### Database migration
+
+Migration `002_locale_and_notification_payload.sql` adds:
+
+- `users.locale` — nullable `en` / `ar` preference.
+- `notifications.payload` — structured notification data for localized
+  rendering.
+
+Existing users remain on English until they choose Arabic or their browser
+prefers it. Existing notifications without a payload fall back to their
+original English title/body; new notifications render in the active language.
+
+Back up the database, deploy the new code, and restart the service. Migrations
+run automatically on startup.
+
+### Adding another language
+
+1. Add the locale to `LOCALES` in `src/lib/i18n/locales.ts`.
+2. Add a dictionary typed with `Record<MessageKey, string>` under
+   `src/lib/i18n/messages/`.
+3. Add fonts or a font stack for the locale in `src/app.css`.
+4. Extend `dirFor()` if the language is RTL.
+5. Add locale options to `LocaleSwitcher.svelte` and the profile form.
+6. Add unit tests for the dictionary and a Playwright smoke flow.
+
+### Localization tests
+
+- `pnpm test` covers locale resolution, translation/pluralization, Arabic
+  formatting, server-message mapping, and localized notification rendering.
+- `pnpm test:e2e` covers English and Arabic/RTL flows, including mobile
+  navigation.
 
 ## Deploy on a VPS (Ubuntu + systemd)
 

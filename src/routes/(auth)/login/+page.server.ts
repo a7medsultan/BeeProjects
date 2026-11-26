@@ -94,7 +94,7 @@ export const actions: Actions = {
 		resetRateLimits(keys);
 
 		const cookieLocale = event.cookies.get(LOCALE_COOKIE);
-		if (!user.locale && isLocale(cookieLocale)) {
+		if (isLocale(cookieLocale) && user.locale !== cookieLocale) {
 			setUserLocale(db, user.id, cookieLocale);
 			user.locale = cookieLocale;
 		}

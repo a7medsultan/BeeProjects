@@ -10,6 +10,7 @@ import {
 	listUsers,
 	resetUserPassword,
 	setUserActive,
+	setUserLocale,
 	updateUser,
 	UserEmailConflictError
 } from '../../src/lib/server/services/users.ts';
@@ -63,6 +64,9 @@ describe('user service', () => {
 		expect(stored?.mustChangePassword).toBe(true);
 		expect(stored?.isActive).toBe(true);
 		expect(countActiveAdmins(db)).toBe(1);
+
+		setUserLocale(db, created.id, 'ar');
+		expect(getUserByEmail(db, 'admin@example.com')?.locale).toBe('ar');
 
 		db.close();
 	});

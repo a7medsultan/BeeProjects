@@ -19,7 +19,7 @@
 	aria-label={t('common.language')}
 >
 	<input type="hidden" name="redirectTo" value={redirectTo} />
-	<span class="sr-only"><Languages class="h-4 w-4" /></span>
+	<Languages class="mx-1 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
 	<button
 		type="submit"
 		name="locale"

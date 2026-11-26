@@ -10,10 +10,14 @@
 		UserPlus
 	} from '@lucide/svelte';
 	import { formatDateTime } from '#lib/format.ts';
+	import { notificationBody, notificationTitle } from '#lib/i18n/content.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
 	import type { NotificationType } from '#lib/types.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+
+	const { t, locale } = useI18n();
 
 	const notice = $derived(form && 'notice' in form ? form.notice : undefined);
 	const actionError = $derived(form && 'error' in form ? form.error : undefined);
@@ -46,16 +50,16 @@
 </script>
 
 <svelte:head>
-	<title>Notifications · BeeProjects</title>
+	<title>{t('notifications.pageTitle')}</title>
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Notifications</h2>
-			<p class="mt-1 text-sm text-slate-500">
-				Assignments, comments, mentions, and deadline reminders.
-			</p>
+			<h2 class="text-2xl font-semibold tracking-tight text-slate-900">
+				{t('notifications.title')}
+			</h2>
+			<p class="mt-1 text-sm text-slate-500">{t('notifications.subtitle')}</p>
 		</div>
 		{#if data.unreadCount > 0}
 			<form method="POST" action="?/markAllRead">
@@ -64,7 +68,7 @@
 					class="inline-flex items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 sm:self-auto"
 				>
 					<Check class="h-4 w-4" />
-					Mark all read
+					{t('notifications.markAllRead')}
 				</button>
 			</form>
 		{/if}
@@ -99,7 +103,7 @@
 			]}
 			aria-current={data.unreadOnly ? undefined : 'page'}
 		>
-			All
+			{t('notifications.all')}
 		</a>
 		<a
 			href={resolve('/(app)/notifications?filter=unread')}
@@ -111,9 +115,9 @@
 			]}
 			aria-current={data.unreadOnly ? 'page' : undefined}
 		>
-			Unread
+			{t('notifications.unread')}
 			{#if data.unreadCount > 0}
-				<span class="ml-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[11px] text-rose-700">
+				<span class="ms-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[11px] text-rose-700">
 					{data.unreadCount}
 				</span>
 			{/if}
@@ -124,10 +128,10 @@
 		<div class="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
 			<Bell class="mx-auto h-10 w-10 text-slate-300" />
 			<h3 class="mt-4 font-semibold text-slate-900">
-				{data.unreadOnly ? 'No unread notifications' : 'No notifications yet'}
+				{data.unreadOnly ? t('notifications.noUnread') : t('notifications.empty')}
 			</h3>
 			<p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
-				Assignments, comments, mentions, and deadline reminders will appear here.
+				{t('notifications.emptyHint')}
 			</p>
 		</div>
 	{:else}
@@ -142,22 +146,26 @@
 				>
 					<form method="POST" action="?/open" class="min-w-0 flex-1">
 						<input type="hidden" name="notificationId" value={notification.id} />
-						<button type="submit" class="flex w-full items-start gap-3 text-left">
+						<button type="submit" class="flex w-full items-start gap-3 text-start">
 							<span class="mt-0.5 rounded-lg bg-white p-2 text-slate-500 shadow-sm">
 								<Icon class="h-4 w-4" />
 							</span>
 							<span class="min-w-0 flex-1">
 								<span class="flex flex-wrap items-center gap-2">
-									<span class="text-sm font-medium text-slate-900">{notification.title}</span>
+									<span dir="auto" class="user-text text-sm font-medium text-slate-900">
+										{notificationTitle(notification, t)}
+									</span>
 									{#if !notification.isRead}
 										<span class="h-2 w-2 rounded-full bg-indigo-500"></span>
 									{/if}
 								</span>
-								{#if notification.body}
-									<span class="mt-0.5 block text-sm text-slate-600">{notification.body}</span>
+								{#if notificationBody(notification, t)}
+									<span dir="auto" class="user-text mt-0.5 block text-sm text-slate-600">
+										{notificationBody(notification, t)}
+									</span>
 								{/if}
 								<span class="mt-1 block text-[11px] text-slate-400">
-									{formatDateTime(notification.createdAt, timezone)}
+									{formatDateTime(notification.createdAt, timezone, locale)}
 								</span>
 							</span>
 						</button>
@@ -168,7 +176,7 @@
 							<input type="hidden" name="notificationId" value={notification.id} />
 							<button
 								type="submit"
-								aria-label="Mark notification as read"
+								aria-label={t('notifications.markReadAria')}
 								class="rounded p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-700"
 							>
 								<Check class="h-4 w-4" />
@@ -184,8 +192,11 @@
 				class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
 			>
 				<p class="text-xs text-slate-500">
-					Showing {(data.page - 1) * data.pageSize + 1}–
-					{Math.min(data.page * data.pageSize, data.total)} of {data.total}
+					{t('common.showingNotifications', {
+						from: (data.page - 1) * data.pageSize + 1,
+						to: Math.min(data.page * data.pageSize, data.total),
+						total: data.total
+					})}
 				</p>
 				<div class="flex items-center gap-2">
 					{#if data.page > 1}
@@ -193,16 +204,18 @@
 							href={resolve(`/(app)/notifications?${pageQuery(data.page - 1)}`)}
 							class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
 						>
-							Previous
+							{t('common.previous')}
 						</a>
 					{/if}
-					<span class="text-xs text-slate-500">Page {data.page} of {data.totalPages}</span>
+					<span class="text-xs text-slate-500">
+						{t('common.pageOf', { page: data.page, total: data.totalPages })}
+					</span>
 					{#if data.page < data.totalPages}
 						<a
 							href={resolve(`/(app)/notifications?${pageQuery(data.page + 1)}`)}
 							class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
 						>
-							Next
+							{t('common.next')}
 						</a>
 					{/if}
 				</div>

@@ -3,19 +3,22 @@
 	import { ArrowLeft, Plus } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import {
-		TASK_PRIORITIES,
-		TASK_PRIORITY_LABELS,
-		TASK_STATUSES,
-		TASK_STATUS_LABELS
-	} from '#lib/constants.ts';
+	import { TASK_PRIORITIES, TASK_STATUSES } from '#lib/constants.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
+	import { TASK_PRIORITY_KEYS, TASK_STATUS_KEYS } from '#lib/i18n/labels.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
+	const { t } = useI18n();
+
 	const { form, errors, message, enhance, submitting } = superForm(
 		untrack(() => data.form),
 		{ taintedMessage: false }
+	);
+
+	const heading = $derived(
+		data.parent ? t('tasks.form.newSubtaskTitle') : t('tasks.form.newTitle')
 	);
 
 	const backHref = $derived(
@@ -26,7 +29,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.parent ? 'New subtask' : 'New task'} · {data.project.name} · BeeProjects</title>
+	<title>{t('tasks.form.pageTitle', { title: heading, project: data.project.name })}</title>
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
@@ -34,19 +37,17 @@
 		href={backHref}
 		class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
 	>
-		<ArrowLeft class="h-4 w-4" />
-		{data.parent ? 'Back to parent task' : 'Back to task list'}
+		<ArrowLeft class="h-4 w-4 rtl:-scale-x-100" />
+		{data.parent ? t('tasks.form.backToParent') : t('tasks.form.backToList')}
 	</a>
 
 	<div>
-		<h2 class="text-2xl font-semibold tracking-tight text-slate-900">
-			{data.parent ? 'Create subtask' : 'Create task'}
-		</h2>
+		<h2 class="text-2xl font-semibold tracking-tight text-slate-900">{heading}</h2>
 		<p class="mt-1 text-sm text-slate-500">
 			{#if data.parent}
-				Under <span class="font-medium text-slate-700">{data.parent.title}</span>
+				{t('tasks.form.underParent', { title: data.parent.title })}
 			{:else}
-				Add a task to <span class="font-medium text-slate-700">{data.project.name}</span>
+				{t('tasks.form.addToProject', { project: data.project.name })}
 			{/if}
 		</p>
 	</div>
@@ -76,11 +77,14 @@
 		<input type="hidden" name="parentTaskId" bind:value={$form.parentTaskId} />
 
 		<div>
-			<label for="title" class="mb-1.5 block text-sm font-medium text-slate-700">Title</label>
+			<label for="title" class="mb-1.5 block text-sm font-medium text-slate-700">
+				{t('tasks.form.title')}
+			</label>
 			<input
 				id="title"
 				name="title"
 				type="text"
+				dir="auto"
 				bind:value={$form.title}
 				aria-invalid={$errors.title ? 'true' : undefined}
 				class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
@@ -92,12 +96,13 @@
 
 		<div>
 			<label for="description" class="mb-1.5 block text-sm font-medium text-slate-700">
-				Description
+				{t('tasks.form.description')}
 			</label>
 			<textarea
 				id="description"
 				name="description"
 				rows="4"
+				dir="auto"
 				bind:value={$form.description}
 				class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 			></textarea>
@@ -108,7 +113,9 @@
 
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 			<div>
-				<label for="status" class="mb-1.5 block text-sm font-medium text-slate-700"> Status </label>
+				<label for="status" class="mb-1.5 block text-sm font-medium text-slate-700">
+					{t('tasks.form.status')}
+				</label>
 				<select
 					id="status"
 					name="status"
@@ -116,7 +123,7 @@
 					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 				>
 					{#each TASK_STATUSES as status (status)}
-						<option value={status}>{TASK_STATUS_LABELS[status]}</option>
+						<option value={status}>{t(TASK_STATUS_KEYS[status])}</option>
 					{/each}
 				</select>
 				{#if $errors.status}
@@ -126,7 +133,7 @@
 
 			<div>
 				<label for="priority" class="mb-1.5 block text-sm font-medium text-slate-700">
-					Priority
+					{t('tasks.form.priority')}
 				</label>
 				<select
 					id="priority"
@@ -135,7 +142,7 @@
 					class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
 				>
 					{#each TASK_PRIORITIES as priority (priority)}
-						<option value={priority}>{TASK_PRIORITY_LABELS[priority]}</option>
+						<option value={priority}>{t(TASK_PRIORITY_KEYS[priority])}</option>
 					{/each}
 				</select>
 				{#if $errors.priority}
@@ -145,7 +152,7 @@
 
 			<div>
 				<label for="startDate" class="mb-1.5 block text-sm font-medium text-slate-700">
-					Start date
+					{t('tasks.form.startDate')}
 				</label>
 				<input
 					id="startDate"
@@ -161,7 +168,7 @@
 
 			<div>
 				<label for="dueDate" class="mb-1.5 block text-sm font-medium text-slate-700">
-					Due date
+					{t('tasks.form.dueDate')}
 				</label>
 				<input
 					id="dueDate"
@@ -178,7 +185,7 @@
 		</div>
 
 		<div>
-			<p class="mb-2 block text-sm font-medium text-slate-700">Assignees</p>
+			<p class="mb-2 block text-sm font-medium text-slate-700">{t('tasks.form.assignees')}</p>
 			{#if data.members.length > 0}
 				<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 					{#each data.members as member (member.userId)}
@@ -192,19 +199,19 @@
 								bind:group={$form.assigneeIds}
 								class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
 							/>
-							<span class="min-w-0 truncate">{member.name}</span>
+							<span dir="auto" class="user-text min-w-0 truncate">{member.name}</span>
 							{#if member.isOwner}
 								<span
-									class="ml-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
+									class="ms-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
 								>
-									Owner
+									{t('projects.members.ownerBadge')}
 								</span>
 							{/if}
 						</label>
 					{/each}
 				</div>
 			{:else}
-				<p class="text-sm text-slate-500">No active project members to assign.</p>
+				<p class="text-sm text-slate-500">{t('tasks.form.noMembers')}</p>
 			{/if}
 			{#if $errors.assigneeIds}
 				<p class="mt-1.5 text-sm text-rose-600">{$errors.assigneeIds[0]}</p>
@@ -216,7 +223,7 @@
 				href={backHref}
 				class="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
 			>
-				Cancel
+				{t('common.cancel')}
 			</a>
 			<button
 				type="submit"
@@ -224,7 +231,11 @@
 				class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
 			>
 				<Plus class="h-4 w-4" />
-				{$submitting ? 'Creating…' : data.parent ? 'Create subtask' : 'Create task'}
+				{$submitting
+					? t('common.creating')
+					: data.parent
+						? t('tasks.form.createSubtask')
+						: t('tasks.form.create')}
 			</button>
 		</div>
 	</form>

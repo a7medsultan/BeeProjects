@@ -13,46 +13,45 @@
 		Pencil,
 		Users
 	} from '@lucide/svelte';
-	import {
-		PROJECT_PRIORITY_CLASSES,
-		PROJECT_PRIORITY_LABELS,
-		PROJECT_STATUS_CLASSES,
-		PROJECT_STATUS_LABELS
-	} from '#lib/constants.ts';
+	import { PROJECT_PRIORITY_CLASSES, PROJECT_STATUS_CLASSES } from '#lib/constants.ts';
 	import { formatDate } from '#lib/format.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
+	import { PROJECT_PRIORITY_KEYS, PROJECT_STATUS_KEYS } from '#lib/i18n/labels.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children, data }: LayoutProps = $props();
+
+	const { t, tp, locale } = useI18n();
 
 	const basePath = $derived(`/projects/${data.project.id}`);
 
 	const tabs = $derived([
 		{
-			label: 'Overview',
+			label: t('projects.detail.overview'),
 			path: basePath,
 			href: resolve('/(app)/projects/[id]', { id: data.project.id }),
 			icon: LayoutDashboard
 		},
 		{
-			label: 'List',
+			label: t('projects.detail.list'),
 			path: `${basePath}/list`,
 			href: resolve('/(app)/projects/[id]/list', { id: data.project.id }),
 			icon: List
 		},
 		{
-			label: 'Board',
+			label: t('projects.detail.board'),
 			path: `${basePath}/board`,
 			href: resolve('/(app)/projects/[id]/board', { id: data.project.id }),
 			icon: Columns3
 		},
 		{
-			label: 'Members',
+			label: t('projects.detail.members'),
 			path: `${basePath}/members`,
 			href: resolve('/(app)/projects/[id]/members', { id: data.project.id }),
 			icon: Users
 		},
 		{
-			label: 'Activity',
+			label: t('projects.detail.activity'),
 			path: `${basePath}/activity`,
 			href: resolve('/(app)/projects/[id]/activity', { id: data.project.id }),
 			icon: History
@@ -77,15 +76,18 @@
 		href={resolve('/(app)/projects')}
 		class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
 	>
-		<ArrowLeft class="h-4 w-4" />
-		Back to projects
+		<ArrowLeft class="h-4 w-4 rtl:-scale-x-100" />
+		{t('projects.form.back')}
 	</a>
 
 	<section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
 		<div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
 			<div class="min-w-0">
 				<div class="flex flex-wrap items-center gap-2">
-					<h1 class="truncate text-2xl font-semibold tracking-tight text-slate-900">
+					<h1
+						dir="auto"
+						class="user-text truncate text-2xl font-semibold tracking-tight text-slate-900"
+					>
 						{data.project.name}
 					</h1>
 					<span
@@ -94,7 +96,7 @@
 							PROJECT_STATUS_CLASSES[data.project.status]
 						]}
 					>
-						{PROJECT_STATUS_LABELS[data.project.status]}
+						{t(PROJECT_STATUS_KEYS[data.project.status])}
 					</span>
 					<span
 						class={[
@@ -102,38 +104,56 @@
 							PROJECT_PRIORITY_CLASSES[data.project.priority]
 						]}
 					>
-						{PROJECT_PRIORITY_LABELS[data.project.priority]} priority
+						{t('common.prioritySuffix', {
+							priority: t(PROJECT_PRIORITY_KEYS[data.project.priority])
+						})}
 					</span>
 				</div>
 
-				<p class="mt-2 max-w-3xl text-sm text-slate-500">
-					{data.project.description || 'No description yet.'}
+				<p dir="auto" class="user-text mt-2 max-w-3xl text-sm text-slate-500">
+					{data.project.description || t('projects.detail.noDescription')}
 				</p>
 
 				<div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500">
-					<span
-						>Owner: <span class="font-medium text-slate-700">{data.project.ownerName}</span></span
-					>
+					<span>
+						{t('common.owner', { name: data.project.ownerName })}
+					</span>
 					<span class="flex items-center gap-1.5">
 						<Users class="h-3.5 w-3.5 text-slate-400" />
-						{data.project.memberCount} member{data.project.memberCount === 1 ? '' : 's'}
+						{tp('common.memberCount', data.project.memberCount)}
 					</span>
 					<span class="flex items-center gap-1.5">
 						<CalendarDays class="h-3.5 w-3.5 text-slate-400" />
-						{data.project.dueDate ? `Due ${formatDate(data.project.dueDate)}` : 'No due date'}
+						{data.project.dueDate
+							? t('common.dueOn', { date: formatDate(data.project.dueDate, locale) })
+							: t('common.noDueDate')}
 					</span>
-					<span>{data.project.completedTasks}/{data.project.totalTasks} tasks complete</span>
+					<span>
+						{t('projects.detail.tasksComplete', {
+							completed: data.project.completedTasks,
+							total: data.project.totalTasks
+						})}
+					</span>
 					{#if data.project.overdueTasks > 0}
-						<span class="font-medium text-rose-600">{data.project.overdueTasks} overdue</span>
+						<span class="font-medium text-rose-600">
+							{t('projects.detail.overdueCount', { count: data.project.overdueTasks })}
+						</span>
 					{/if}
 				</div>
 
 				<div class="mt-4 max-w-xl">
 					<div class="flex items-center justify-between text-xs text-slate-500">
-						<span>Progress</span>
+						<span>{t('projects.detail.progressLabel')}</span>
 						<span class="font-medium text-slate-700">{data.project.progress}%</span>
 					</div>
-					<div class="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
+					<div
+						class="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100"
+						role="progressbar"
+						aria-valuenow={data.project.progress}
+						aria-valuemin="0"
+						aria-valuemax="100"
+						aria-label={t('projects.progressAria', { percent: data.project.progress })}
+					>
 						<div
 							class="h-full rounded-full bg-indigo-500 transition-all"
 							style={`width: ${data.project.progress}%`}
@@ -149,7 +169,7 @@
 						class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
 					>
 						<Pencil class="h-4 w-4" />
-						Edit
+						{t('common.edit')}
 					</a>
 				{/if}
 
@@ -158,7 +178,7 @@
 						method="POST"
 						action={archiveAction}
 						onsubmit={(event) => {
-							if (!confirm(`Archive “${data.project.name}”?`)) event.preventDefault();
+							if (!confirm(t('projects.detail.archiveConfirm'))) event.preventDefault();
 						}}
 					>
 						<button
@@ -166,7 +186,7 @@
 							class="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
 						>
 							<Archive class="h-4 w-4" />
-							Archive
+							{t('common.archive')}
 						</button>
 					</form>
 				{:else if data.permissions.canUnarchive}
@@ -176,7 +196,7 @@
 							class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
 						>
 							<ArchiveRestore class="h-4 w-4" />
-							Unarchive
+							{t('common.unarchive')}
 						</button>
 					</form>
 				{/if}
@@ -186,12 +206,12 @@
 
 	{#if data.permissions.isArchived}
 		<div class="rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-700">
-			This project is archived and read-only. Unarchive it to make changes again.
+			{t('projects.detail.archivedNotice')}
 		</div>
 	{/if}
 
 	<div class="border-b border-slate-200">
-		<nav class="-mb-px flex gap-1 overflow-x-auto" aria-label="Project sections">
+		<nav class="-mb-px flex gap-1 overflow-x-auto" aria-label={t('projects.detail.sectionsAria')}>
 			{#each tabs as tab (tab.path)}
 				<a
 					href={tab.href}
