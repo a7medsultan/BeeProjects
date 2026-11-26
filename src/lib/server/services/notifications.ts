@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import type { NotificationItem, NotificationType } from '#lib/types.ts';
+import type { NotificationItem, NotificationPayload, NotificationType } from '#lib/types.ts';
 
 export interface NotificationPage {
 	items: NotificationItem[];
@@ -15,6 +15,7 @@ export interface CreateNotificationInput {
 	type: NotificationType;
 	title: string;
 	body?: string | null;
+	payload?: NotificationPayload | null;
 	projectId?: string | null;
 	taskId?: string | null;
 	commentId?: string | null;
@@ -32,6 +33,7 @@ interface NotificationRow {
 	type: string;
 	title: string;
 	body: string | null;
+	payload: string | null;
 	project_id: string | null;
 	task_id: string | null;
 	comment_id: string | null;
@@ -41,11 +43,22 @@ interface NotificationRow {
 }
 
 const NOTIFICATION_SELECT = `
-	SELECT n.id, n.type, n.title, n.body, n.project_id, n.task_id, n.comment_id,
+	SELECT n.id, n.type, n.title, n.body, n.payload, n.project_id, n.task_id, n.comment_id,
 	       u.name AS actor_name, n.is_read, n.created_at
 	FROM notifications n
 	LEFT JOIN users u ON u.id = n.actor_id
 `;
+
+function parsePayload(value: string | null): NotificationPayload | null {
+	if (!value) return null;
+
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		return parsed && typeof parsed === 'object' ? (parsed as NotificationPayload) : null;
+	} catch {
+		return null;
+	}
+}
 
 function mapNotification(row: NotificationRow): NotificationItem {
 	return {
@@ -57,6 +70,7 @@ function mapNotification(row: NotificationRow): NotificationItem {
 		taskId: row.task_id,
 		commentId: row.comment_id,
 		actorName: row.actor_name,
+		payload: parsePayload(row.payload),
 		isRead: row.is_read === 1,
 		createdAt: row.created_at
 	};
@@ -74,15 +88,16 @@ function excerpt(body: string): string {
 export function createNotification(db: Database.Database, input: CreateNotificationInput): void {
 	db.prepare(
 		`INSERT OR IGNORE INTO notifications
-		 (id, user_id, type, title, body, project_id, task_id, comment_id, actor_id,
+		 (id, user_id, type, title, body, payload, project_id, task_id, comment_id, actor_id,
 		  is_read, dedupe_key, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
 	).run(
 		randomUUID(),
 		input.userId,
 		input.type,
 		input.title,
 		input.body ?? null,
+		input.payload ? JSON.stringify(input.payload) : null,
 		input.projectId ?? null,
 		input.taskId ?? null,
 		input.commentId ?? null,
@@ -115,6 +130,11 @@ export function notifyTaskAssignment(
 				? `${input.actorName} reassigned a task to you`
 				: `${input.actorName} assigned you a task`,
 			body: input.taskTitle,
+			payload: {
+				variant: input.hadAssignees ? 'reassigned' : 'assigned',
+				actorName: input.actorName,
+				taskTitle: input.taskTitle
+			},
 			projectId: input.projectId,
 			taskId: input.taskId,
 			actorId: input.actorId
@@ -129,6 +149,11 @@ export function notifyTaskAssignment(
 			type: 'task_reassigned',
 			title: `${input.actorName} unassigned you from a task`,
 			body: input.taskTitle,
+			payload: {
+				variant: 'unassigned',
+				actorName: input.actorName,
+				taskTitle: input.taskTitle
+			},
 			projectId: input.projectId,
 			taskId: input.taskId,
 			actorId: input.actorId
@@ -173,6 +198,11 @@ export function notifyComment(
 
 	const mentioned = new Set(input.mentionIds);
 	const body = `${task.title}: ${excerpt(input.body)}`;
+	const payload = {
+		actorName: author.name,
+		taskTitle: task.title,
+		excerpt: excerpt(input.body)
+	};
 
 	for (const userId of mentioned) {
 		if (userId === input.authorId) continue;
@@ -182,6 +212,7 @@ export function notifyComment(
 			type: 'mention',
 			title: `${author.name} mentioned you`,
 			body,
+			payload,
 			projectId: input.projectId,
 			taskId: input.taskId,
 			commentId: input.commentId,
@@ -202,6 +233,7 @@ export function notifyComment(
 			type: 'comment_added',
 			title: `${author.name} commented on a task`,
 			body,
+			payload,
 			projectId: input.projectId,
 			taskId: input.taskId,
 			commentId: input.commentId,

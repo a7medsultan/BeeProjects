@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { changePasswordSchema, profileSchema } from '#lib/schemas/auth.ts';
+import { createChangePasswordSchema, createProfileSchema } from '#lib/schemas/auth.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { requireUser } from '#lib/server/auth/guards.ts';
 import { isValidTimezone, getSupportedTimezones } from '#lib/server/dates.ts';
@@ -16,8 +16,11 @@ import {
 	changeOwnPassword,
 	getUserByEmail,
 	getUserById,
+	setUserLocale,
 	updateUser
 } from '#lib/server/services/users.ts';
+import { translate } from '#lib/i18n/index.ts';
+import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from '#lib/i18n/locales.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -32,10 +35,14 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		profileForm: await superValidate(
-			{ name: user.name, timezone: user.timezone },
-			zod4(profileSchema)
+			{
+				name: user.name,
+				timezone: user.timezone,
+				locale: user.locale ?? event.locals.locale
+			},
+			zod4(createProfileSchema(event.locals.locale))
 		),
-		passwordForm: await superValidate(zod4(changePasswordSchema)),
+		passwordForm: await superValidate(zod4(createChangePasswordSchema(event.locals.locale))),
 		timezones: getSupportedTimezones(),
 		forcePasswordChange: user.mustChangePassword
 	};
@@ -44,14 +51,14 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	updateProfile: async (event) => {
 		const actor = requireUser(event, { allowPendingPassword: true });
-		const form = await superValidate(event, zod4(profileSchema));
+		const form = await superValidate(event, zod4(createProfileSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
 		if (!isValidTimezone(form.data.timezone)) {
-			setError(form, 'timezone', 'Select a valid timezone.');
+			setError(form, 'timezone', translate(event.locals.locale, 'validation.timezoneInvalid'));
 			return fail(400, { form });
 		}
 
@@ -68,19 +75,32 @@ export const actions: Actions = {
 			role: current.role,
 			timezone: form.data.timezone
 		});
+		setUserLocale(db, current.id, form.data.locale);
+
+		event.cookies.set(LOCALE_COOKIE, form.data.locale, {
+			path: '/',
+			httpOnly: true,
+			sameSite: 'lax',
+			maxAge: LOCALE_COOKIE_MAX_AGE,
+			secure: event.url.protocol === 'https:'
+		});
 
 		event.locals.user = {
 			...actor,
 			name: form.data.name.trim(),
-			timezone: form.data.timezone
+			timezone: form.data.timezone,
+			locale: form.data.locale
 		};
 
-		return message(form, { type: 'success', text: 'Profile updated.' });
+		return message(form, {
+			type: 'success',
+			text: translate(form.data.locale, 'server.profileUpdated')
+		});
 	},
 
 	changePassword: async (event) => {
 		const actor = requireUser(event, { allowPendingPassword: true });
-		const form = await superValidate(event, zod4(changePasswordSchema));
+		const form = await superValidate(event, zod4(createChangePasswordSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			scrubPasswordForm(form);
@@ -100,7 +120,11 @@ export const actions: Actions = {
 		const validCurrent = await verifyPassword(user.passwordHash, currentPassword);
 
 		if (!validCurrent) {
-			setError(form, '_currentPassword', 'Current password is incorrect.');
+			setError(
+				form,
+				'_currentPassword',
+				translate(event.locals.locale, 'profile.currentPasswordIncorrect')
+			);
 			scrubPasswordForm(form);
 			return fail(400, { form });
 		}
@@ -116,7 +140,7 @@ export const actions: Actions = {
 
 		return message(form, {
 			type: 'success',
-			text: 'Password changed. Other sessions have been signed out.'
+			text: translate(event.locals.locale, 'server.passwordChanged')
 		});
 	},
 

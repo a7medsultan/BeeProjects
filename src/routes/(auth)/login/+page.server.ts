@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { SESSION_TTL_DAYS } from '$app/env/private';
-import { loginSchema } from '#lib/schemas/auth.ts';
+import { createLoginSchema } from '#lib/schemas/auth.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { verifyPassword } from '#lib/server/auth/password.ts';
 import { createSession, setSessionCookie } from '#lib/server/auth/session.ts';
@@ -13,7 +13,14 @@ import {
 	recordFailures,
 	resetRateLimits
 } from '#lib/server/auth/rate-limit.ts';
-import { getUserByEmail, toPublicUser, touchLastLogin } from '#lib/server/services/users.ts';
+import {
+	getUserByEmail,
+	setUserLocale,
+	toPublicUser,
+	touchLastLogin
+} from '#lib/server/services/users.ts';
+import { translate } from '#lib/i18n/index.ts';
+import { LOCALE_COOKIE, isLocale } from '#lib/i18n/locales.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -22,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
 	}
 
-	const form = await superValidate(zod4(loginSchema));
+	const form = await superValidate(zod4(createLoginSchema(locals.locale)));
 	form.data.redirectTo = url.searchParams.get('redirectTo') ?? '';
 
 	return {
@@ -33,7 +40,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
 	login: async (event) => {
-		const form = await superValidate(event, zod4(loginSchema));
+		const form = await superValidate(event, zod4(createLoginSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			scrubPassword(form);
@@ -61,7 +68,7 @@ export const actions: Actions = {
 				form,
 				{
 					type: 'error',
-					text: `Too many sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`
+					text: translate(event.locals.locale, 'auth.rateLimited', { minutes })
 				},
 				{ status: 429 }
 			);
@@ -74,10 +81,23 @@ export const actions: Actions = {
 		if (!user || !validPassword || !user.isActive) {
 			recordFailures(keys);
 			scrubPassword(form);
-			return message(form, { type: 'error', text: 'Invalid email or password.' }, { status: 400 });
+			return message(
+				form,
+				{
+					type: 'error',
+					text: translate(event.locals.locale, 'auth.invalidCredentials')
+				},
+				{ status: 400 }
+			);
 		}
 
 		resetRateLimits(keys);
+
+		const cookieLocale = event.cookies.get(LOCALE_COOKIE);
+		if (!user.locale && isLocale(cookieLocale)) {
+			setUserLocale(db, user.id, cookieLocale);
+			user.locale = cookieLocale;
+		}
 
 		const { token, expiresAt } = createSession(db, user.id, SESSION_TTL_DAYS, {
 			ip,

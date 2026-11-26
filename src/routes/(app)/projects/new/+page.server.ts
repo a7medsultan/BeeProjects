@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { projectFormSchema } from '#lib/schemas/projects.ts';
+import { createProjectFormSchema } from '#lib/schemas/projects.ts';
 import { requireUser } from '#lib/server/auth/guards.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import {
@@ -9,6 +9,7 @@ import {
 	getOwnerCandidates,
 	ProjectInputError
 } from '#lib/server/services/projects.ts';
+import { localizeServerMessage } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -19,7 +20,7 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const db = getDb();
-	const form = await superValidate(zod4(projectFormSchema), {
+	const form = await superValidate(zod4(createProjectFormSchema(event.locals.locale)), {
 		defaults: {
 			name: '',
 			description: '',
@@ -46,7 +47,7 @@ export const actions: Actions = {
 			error(403, 'Only admins and project managers can create projects');
 		}
 
-		const form = await superValidate(event, zod4(projectFormSchema));
+		const form = await superValidate(event, zod4(createProjectFormSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -65,7 +66,7 @@ export const actions: Actions = {
 			);
 		} catch (error) {
 			if (error instanceof ProjectInputError) {
-				setError(form, 'ownerId', error.message);
+				setError(form, 'ownerId', localizeServerMessage(event.locals.locale, error.message));
 				return fail(400, { form });
 			}
 

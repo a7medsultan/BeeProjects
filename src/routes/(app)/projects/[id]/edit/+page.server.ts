@@ -1,7 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { projectFormSchema } from '#lib/schemas/projects.ts';
+import { createProjectFormSchema } from '#lib/schemas/projects.ts';
 import { requireUser } from '#lib/server/auth/guards.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { requireProjectManageable } from '#lib/server/permissions.ts';
@@ -12,6 +12,7 @@ import {
 	reassignProjectOwner,
 	updateProject
 } from '#lib/server/services/projects.ts';
+import { localizeServerMessage, translate } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -44,7 +45,7 @@ export const load: PageServerLoad = async (event) => {
 				status: project.status === 'Archived' ? 'Planning' : project.status,
 				ownerId: project.ownerId
 			},
-			zod4(projectFormSchema)
+			zod4(createProjectFormSchema(event.locals.locale))
 		)
 	};
 };
@@ -60,7 +61,7 @@ export const actions: Actions = {
 			error(404, 'Project not found');
 		}
 
-		const form = await superValidate(event, zod4(projectFormSchema));
+		const form = await superValidate(event, zod4(createProjectFormSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -73,7 +74,7 @@ export const actions: Actions = {
 			const validOwner = getOwnerCandidates(db).some((owner) => owner.id === ownerId);
 
 			if (!validOwner) {
-				setError(form, 'ownerId', 'Select an active admin or project manager.');
+				setError(form, 'ownerId', translate(event.locals.locale, 'errors.ownerActive'));
 				return fail(400, { form });
 			}
 		}
@@ -94,13 +95,16 @@ export const actions: Actions = {
 			}
 		} catch (error) {
 			if (error instanceof ProjectInputError) {
-				setError(form, 'ownerId', error.message);
+				setError(form, 'ownerId', localizeServerMessage(event.locals.locale, error.message));
 				return fail(400, { form });
 			}
 
 			throw error;
 		}
 
-		return message(form, { type: 'success', text: 'Project updated.' });
+		return message(form, {
+			type: 'success',
+			text: translate(event.locals.locale, 'server.projectUpdated')
+		});
 	}
 };

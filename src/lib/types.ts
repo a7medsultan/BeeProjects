@@ -1,3 +1,5 @@
+import type { Locale } from './i18n/locales.ts';
+
 export type RoleName = 'admin' | 'project_manager' | 'member';
 
 export type ProjectStatus = 'Planning' | 'Active' | 'On Hold' | 'Completed' | 'Archived';
@@ -9,6 +11,7 @@ export interface PublicUser {
 	email: string;
 	role: RoleName;
 	timezone: string;
+	locale: Locale | null;
 	mustChangePassword: boolean;
 }
 
@@ -181,6 +184,14 @@ export interface AttachmentItem {
 export type NotificationType =
 	'task_assigned' | 'task_reassigned' | 'comment_added' | 'mention' | 'due_soon' | 'overdue';
 
+export interface NotificationPayload {
+	variant?: 'assigned' | 'reassigned' | 'unassigned';
+	actorName?: string;
+	taskTitle?: string;
+	projectName?: string;
+	excerpt?: string;
+}
+
 export interface NotificationItem {
 	id: string;
 	type: NotificationType;
@@ -190,6 +201,7 @@ export interface NotificationItem {
 	taskId: string | null;
 	commentId: string | null;
 	actorName: string | null;
+	payload: NotificationPayload | null;
 	isRead: boolean;
 	createdAt: string;
 }

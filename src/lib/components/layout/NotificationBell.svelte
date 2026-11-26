@@ -3,6 +3,8 @@
 	import { Bell } from '@lucide/svelte';
 	import { onMount, untrack } from 'svelte';
 	import { formatDateTime } from '#lib/format.ts';
+	import { notificationBody, notificationTitle } from '#lib/i18n/content.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
 	import type { NotificationItem } from '#lib/types.ts';
 
 	interface Props {
@@ -12,6 +14,8 @@
 	}
 
 	let { initialCount, recent, timezone }: Props = $props();
+
+	const { t, tp, locale } = useI18n();
 
 	let unread = $state(untrack(() => initialCount));
 	let open = $state(false);
@@ -63,14 +67,16 @@
 	<button
 		type="button"
 		class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-		aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+		aria-label={unread > 0
+			? t('notifications.bellUnreadAria', { count: unread })
+			: t('notifications.bellAria')}
 		aria-expanded={open}
 		onclick={() => (open = !open)}
 	>
 		<Bell class="h-5 w-5" />
 		{#if unread > 0}
 			<span
-				class="absolute -top-0.5 -right-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white"
+				class="absolute -end-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white"
 			>
 				{unread > 9 ? '9+' : unread}
 			</span>
@@ -81,20 +87,20 @@
 		<button
 			type="button"
 			class="fixed inset-0 z-30 cursor-default"
-			aria-label="Close notifications"
+			aria-label={t('notifications.close')}
 			onclick={() => (open = false)}
 		></button>
 
 		<div
-			class="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+			class="absolute end-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
 		>
 			<div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-				<p class="text-sm font-semibold text-slate-900">Notifications</p>
-				<span class="text-xs text-slate-500">{unread} unread</span>
+				<p class="text-sm font-semibold text-slate-900">{t('notifications.title')}</p>
+				<span class="text-xs text-slate-500">{tp('common.unreadCount', unread)}</span>
 			</div>
 
 			{#if recent.length === 0}
-				<p class="px-4 py-6 text-center text-sm text-slate-500">No notifications yet.</p>
+				<p class="px-4 py-6 text-center text-sm text-slate-500">{t('notifications.empty')}</p>
 			{:else}
 				<ul class="max-h-96 divide-y divide-slate-100 overflow-y-auto">
 					{#each recent as notification (notification.id)}
@@ -103,7 +109,7 @@
 								<input type="hidden" name="notificationId" value={notification.id} />
 								<button
 									type="submit"
-									class="flex w-full items-start gap-2 px-4 py-3 text-left transition hover:bg-slate-50"
+									class="flex w-full items-start gap-2 px-4 py-3 text-start transition hover:bg-slate-50"
 								>
 									<span
 										class={[
@@ -112,16 +118,22 @@
 										]}
 									></span>
 									<span class="min-w-0">
-										<span class="block truncate text-sm font-medium text-slate-800">
-											{notification.title}
+										<span
+											dir="auto"
+											class="user-text block truncate text-sm font-medium text-slate-800"
+										>
+											{notificationTitle(notification, t)}
 										</span>
-										{#if notification.body}
-											<span class="mt-0.5 block truncate text-xs text-slate-500">
-												{notification.body}
+										{#if notificationBody(notification, t)}
+											<span
+												dir="auto"
+												class="user-text mt-0.5 block truncate text-xs text-slate-500"
+											>
+												{notificationBody(notification, t)}
 											</span>
 										{/if}
 										<span class="mt-0.5 block text-[11px] text-slate-400">
-											{formatDateTime(notification.createdAt, timezone)}
+											{formatDateTime(notification.createdAt, timezone, locale)}
 										</span>
 									</span>
 								</button>
@@ -137,7 +149,7 @@
 					class="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
 					onclick={() => (open = false)}
 				>
-					View all notifications
+					{t('notifications.viewAll')}
 				</a>
 				{#if unread > 0}
 					<form method="POST" action={resolve('/(app)/notifications') + '?/markAllRead'}>
@@ -145,7 +157,7 @@
 							type="submit"
 							class="text-xs font-medium text-slate-500 transition hover:text-slate-700"
 						>
-							Mark all read
+							{t('notifications.markAllRead')}
 						</button>
 					</form>
 				{/if}

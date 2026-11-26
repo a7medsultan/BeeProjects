@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import logo from '#lib/assets/favicon.svg';
+	import LocaleSwitcher from '#lib/components/layout/LocaleSwitcher.svelte';
 	import NotificationBell from '#lib/components/layout/NotificationBell.svelte';
 	import {
 		Bell,
@@ -14,33 +15,42 @@
 		UserRound,
 		X
 	} from '@lucide/svelte';
+	import { useI18n } from '#lib/i18n/index.ts';
+	import { ROLE_KEYS } from '#lib/i18n/labels.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children, data }: LayoutProps = $props();
 
+	const { t } = useI18n();
+
 	let sidebarOpen = $state(false);
 
 	const baseNavigation = [
-		{ path: '/', href: resolve('/(app)'), label: 'Dashboard', icon: LayoutDashboard },
+		{
+			path: '/',
+			href: resolve('/(app)'),
+			label: t('nav.dashboard'),
+			icon: LayoutDashboard
+		},
 		{
 			path: '/projects',
 			href: resolve('/(app)/projects'),
-			label: 'Projects',
+			label: t('nav.projects'),
 			icon: FolderKanban
 		},
 		{
 			path: '/my-tasks',
 			href: resolve('/(app)/my-tasks'),
-			label: 'My Tasks',
+			label: t('nav.myTasks'),
 			icon: ListChecks
 		},
 		{
 			path: '/notifications',
 			href: resolve('/(app)/notifications'),
-			label: 'Notifications',
+			label: t('nav.notifications'),
 			icon: Bell
 		},
-		{ path: '/profile', href: resolve('/(app)/profile'), label: 'Profile', icon: UserRound }
+		{ path: '/profile', href: resolve('/(app)/profile'), label: t('nav.profile'), icon: UserRound }
 	];
 
 	const navigation = $derived([
@@ -50,7 +60,7 @@
 					{
 						path: '/admin',
 						href: resolve('/(app)/admin/users'),
-						label: 'Admin',
+						label: t('nav.admin'),
 						icon: Shield
 					}
 				]
@@ -88,7 +98,7 @@
 		<button
 			type="button"
 			class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50"
-			aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
+			aria-label={sidebarOpen ? t('nav.closeNavigation') : t('nav.openNavigation')}
 			aria-expanded={sidebarOpen}
 			onclick={() => (sidebarOpen = !sidebarOpen)}
 		>
@@ -103,16 +113,16 @@
 	<!-- Sidebar -->
 	<aside
 		class={[
-			'fixed inset-y-0 left-0 z-40 w-64 border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0',
-			sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+			'fixed inset-y-0 start-0 z-40 w-64 border-e border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0',
+			sidebarOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
 		]}
-		aria-label="Main navigation"
+		aria-label={t('nav.mainNavigation')}
 	>
 		<div class="flex h-16 items-center gap-2 border-b border-slate-200 px-5">
 			<img src={logo} alt="" class="h-8 w-8" />
 			<span class="text-lg font-semibold tracking-tight text-slate-900">BeeProjects</span>
 			<span
-				class="ml-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700"
+				class="ms-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700"
 			>
 				M7
 			</span>
@@ -147,8 +157,8 @@
 					</div>
 					<div class="min-w-0">
 						<p class="truncate text-sm font-medium text-slate-900">{data.user.name}</p>
-						<p class="truncate text-xs text-slate-500 capitalize">
-							{data.user.role.replace('_', ' ')}
+						<p class="truncate text-xs text-slate-500">
+							{t(ROLE_KEYS[data.user.role])}
 						</p>
 					</div>
 				</div>
@@ -157,8 +167,8 @@
 						type="submit"
 						class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
 					>
-						<LogOut class="h-4 w-4" />
-						Sign out
+						<LogOut class="h-4 w-4 rtl:-scale-x-100" />
+						{t('common.signOut')}
 					</button>
 				</form>
 			{:else}
@@ -167,10 +177,10 @@
 					class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
 				>
 					<UserRound class="h-4 w-4" />
-					Sign in
+					{t('common.signIn')}
 				</a>
 				<p class="mt-2 text-[11px] leading-4 text-slate-400">
-					Server-side sessions and role guards are active.
+					{t('layout.serverSessions')}
 				</p>
 			{/if}
 		</div>
@@ -180,7 +190,7 @@
 		<button
 			type="button"
 			class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
-			aria-label="Close navigation"
+			aria-label={t('nav.closeNavigation')}
 			onclick={closeSidebar}
 		></button>
 	{/if}
@@ -191,11 +201,12 @@
 			<div class="flex items-center justify-between gap-4">
 				<div>
 					<p class="text-xs font-medium tracking-wider text-slate-400 uppercase">
-						Phase 0 · MVP foundation
+						{t('layout.phase')}
 					</p>
-					<h1 class="text-lg font-semibold text-slate-900">Project workspace</h1>
+					<h1 class="text-lg font-semibold text-slate-900">{t('layout.workspace')}</h1>
 				</div>
 				<div class="flex items-center gap-2">
+					<LocaleSwitcher compact />
 					<NotificationBell
 						initialCount={data.unreadCount}
 						recent={data.recentNotifications}
@@ -203,7 +214,7 @@
 					/>
 					<div class="hidden items-center gap-2 text-sm text-slate-500 md:flex">
 						<span class="inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-						Local development
+						{t('layout.localDevelopment')}
 					</div>
 				</div>
 			</div>

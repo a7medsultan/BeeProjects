@@ -3,6 +3,7 @@ import { dev } from '$app/env';
 import type { Cookies } from '@sveltejs/kit';
 import type Database from 'better-sqlite3';
 import type { PublicUser, RoleName, SessionInfo } from '#lib/types.ts';
+import type { Locale } from '#lib/i18n/locales.ts';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const ONE_DAY_SECONDS = 24 * 60 * 60;
@@ -17,6 +18,7 @@ interface SessionRow {
 	email: string;
 	role: string;
 	timezone: string;
+	locale: string | null;
 	is_active: number;
 	must_change_password: number;
 }
@@ -61,7 +63,7 @@ export function validateSession(db: Database.Database, token: string): SessionCo
 	const row = db
 		.prepare(
 			`SELECT s.expires_at, s.last_seen_at,
-			        u.id, u.name, u.email, u.role_id, u.timezone, u.is_active, u.must_change_password,
+			        u.id, u.name, u.email, u.role_id, u.timezone, u.locale, u.is_active, u.must_change_password,
 			        r.name AS role
 			 FROM sessions s
 			 JOIN users u ON u.id = s.user_id
@@ -93,6 +95,7 @@ export function validateSession(db: Database.Database, token: string): SessionCo
 			email: row.email,
 			role: row.role as RoleName,
 			timezone: row.timezone,
+			locale: row.locale as Locale | null,
 			mustChangePassword: row.must_change_password === 1
 		},
 		session: { expiresAt: row.expires_at }

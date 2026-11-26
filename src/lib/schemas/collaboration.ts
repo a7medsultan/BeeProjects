@@ -1,11 +1,17 @@
 import { z } from 'zod';
+import { translate } from '#lib/i18n/index.ts';
+import type { Locale } from '#lib/i18n/locales.ts';
 
-export const commentSchema = z.object({
-	body: z
-		.string()
-		.trim()
-		.min(1, 'Comment cannot be empty')
-		.max(5000, 'Comment is too long (maximum 5000 characters)')
-});
+export function createCommentSchema(locale: Locale = 'en') {
+	const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
-export type CommentInput = z.infer<typeof commentSchema>;
+	return z.object({
+		body: z
+			.string()
+			.trim()
+			.min(1, t('validation.commentEmpty'))
+			.max(5000, t('validation.commentMax'))
+	});
+}
+
+export type CommentInput = z.infer<ReturnType<typeof createCommentSchema>>;

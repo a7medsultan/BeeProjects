@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { taskCreateSchema } from '#lib/schemas/tasks.ts';
+import { createTaskCreateSchema } from '#lib/schemas/tasks.ts';
 import { requireUser } from '#lib/server/auth/guards.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { requireProjectManageable } from '#lib/server/permissions.ts';
@@ -11,6 +11,7 @@ import {
 	getTopLevelTaskForCreate,
 	TaskInputError
 } from '#lib/server/services/tasks.ts';
+import { localizeServerMessage } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -29,7 +30,7 @@ export const load: PageServerLoad = async (event) => {
 		}
 	}
 
-	const form = await superValidate(zod4(taskCreateSchema), {
+	const form = await superValidate(zod4(createTaskCreateSchema(event.locals.locale)), {
 		defaults: {
 			title: '',
 			description: '',
@@ -55,7 +56,7 @@ export const actions: Actions = {
 		const db = getDb();
 		requireProjectManageable(db, event.params.id, user);
 
-		const form = await superValidate(event, zod4(taskCreateSchema));
+		const form = await superValidate(event, zod4(createTaskCreateSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -76,11 +77,15 @@ export const actions: Actions = {
 		} catch (error) {
 			if (error instanceof TaskInputError) {
 				if (error.field === 'parentTaskId') {
-					setError(form, 'parentTaskId', error.message);
+					setError(form, 'parentTaskId', localizeServerMessage(event.locals.locale, error.message));
 					return fail(400, { form });
 				}
 
-				return message(form, { type: 'error', text: error.message }, { status: 400 });
+				return message(
+					form,
+					{ type: 'error', text: localizeServerMessage(event.locals.locale, error.message) },
+					{ status: 400 }
+				);
 			}
 
 			throw error;

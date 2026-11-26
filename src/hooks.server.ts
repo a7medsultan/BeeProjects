@@ -9,6 +9,8 @@ import {
 	validateSession
 } from '#lib/server/auth/session.ts';
 import { startJobs, stopJobs } from '#lib/server/jobs.ts';
+import { LOCALE_COOKIE, dirFor, resolveLocale, type Locale } from '#lib/i18n/locales.ts';
+import { localizeServerMessage, translate } from '#lib/i18n/index.ts';
 
 export const init: ServerInit = async () => {
 	if (building) return;
@@ -40,7 +42,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	const response = await resolve(event);
+	const locale = resolveLocale({
+		userLocale: event.locals.user?.locale,
+		cookieLocale: event.cookies.get(LOCALE_COOKIE),
+		acceptLanguage: event.request.headers.get('accept-language')
+	});
+	event.locals.locale = locale;
+	event.locals.dir = dirFor(locale);
+
+	const response = await resolve(event, {
+		transformPageChunk: ({ html }) =>
+			html.replace('<html lang="en" dir="ltr">', `<html lang="${locale}" dir="${dirFor(locale)}">`)
+	});
 	return withSecurityHeaders(response);
 };
 
@@ -72,23 +85,25 @@ function withSecurityHeaders(response: Response): Response {
 }
 
 export const handleError: HandleServerError = ({ kind, error, event }) => {
+	const locale: Locale = event.locals.locale ?? 'en';
+
 	if (kind === 'unknown') {
 		console.error(`[server error] ${event.request.method} ${event.url.pathname}`, error);
-		return { message: 'Something went wrong. Please try again.' };
+		return { message: translate(locale, 'error.server') };
 	}
 
 	if (kind === 'framework') {
 		if (error.status >= 500) {
 			console.error(`[framework error] ${event.request.method} ${event.url.pathname}`, error);
 		}
-		return { message: error.message };
+		return { message: localizeServerMessage(locale, error.message) };
 	}
 
 	if (kind === 'app' || kind === 'validation') {
-		return { message: error.message };
+		return { message: localizeServerMessage(locale, error.message) };
 	}
 
-	return { message: 'Something went wrong. Please try again.' };
+	return { message: translate(locale, 'error.server') };
 };
 
 const globalState = globalThis as typeof globalThis & {

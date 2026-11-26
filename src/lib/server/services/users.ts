@@ -1,6 +1,7 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { PublicUser, RoleName } from '#lib/types.ts';
+import type { Locale } from '#lib/i18n/locales.ts';
 import type { UserListQuery } from '#lib/schemas/users.ts';
 import { hashPassword } from '../auth/password.ts';
 
@@ -11,6 +12,7 @@ export interface AuthUser {
 	passwordHash: string;
 	role: RoleName;
 	timezone: string;
+	locale: Locale | null;
 	isActive: boolean;
 	mustChangePassword: boolean;
 }
@@ -21,6 +23,7 @@ export interface AdminUser {
 	email: string;
 	role: RoleName;
 	timezone: string;
+	locale: Locale | null;
 	isActive: boolean;
 	mustChangePassword: boolean;
 	lastLoginAt: string | null;
@@ -57,6 +60,7 @@ interface AuthUserRow {
 	password_hash: string;
 	role: string;
 	timezone: string;
+	locale: string | null;
 	is_active: number;
 	must_change_password: number;
 }
@@ -67,6 +71,7 @@ interface AdminUserRow {
 	email: string;
 	role: string;
 	timezone: string;
+	locale: string | null;
 	is_active: number;
 	must_change_password: number;
 	last_login_at: string | null;
@@ -75,7 +80,7 @@ interface AdminUserRow {
 }
 
 const ADMIN_USER_SELECT = `
-	SELECT u.id, u.name, u.email, r.name AS role, u.timezone,
+	SELECT u.id, u.name, u.email, r.name AS role, u.timezone, u.locale,
 	       u.is_active, u.must_change_password, u.last_login_at, u.created_at,
 	       (SELECT COUNT(*) FROM projects p
 	        WHERE p.owner_id = u.id AND p.status <> 'Archived') AS owned_projects
@@ -102,6 +107,7 @@ function mapAuthUser(row: AuthUserRow): AuthUser {
 		passwordHash: row.password_hash,
 		role: row.role as RoleName,
 		timezone: row.timezone,
+		locale: row.locale as Locale | null,
 		isActive: row.is_active === 1,
 		mustChangePassword: row.must_change_password === 1
 	};
@@ -114,6 +120,7 @@ function mapAdminUser(row: AdminUserRow): AdminUser {
 		email: row.email,
 		role: row.role as RoleName,
 		timezone: row.timezone,
+		locale: row.locale as Locale | null,
 		isActive: row.is_active === 1,
 		mustChangePassword: row.must_change_password === 1,
 		lastLoginAt: row.last_login_at,
@@ -129,6 +136,7 @@ export function toPublicUser(user: AuthUser): PublicUser {
 		email: user.email,
 		role: user.role,
 		timezone: user.timezone,
+		locale: user.locale,
 		mustChangePassword: user.mustChangePassword
 	};
 }
@@ -137,7 +145,7 @@ export function getUserByEmail(db: Database.Database, email: string): AuthUser |
 	const row = db
 		.prepare(
 			`SELECT u.id, u.name, u.email, u.password_hash, r.name AS role,
-			        u.timezone, u.is_active, u.must_change_password
+			        u.timezone, u.locale, u.is_active, u.must_change_password
 			 FROM users u
 			 JOIN roles r ON r.id = u.role_id
 			 WHERE u.email = ?`
@@ -252,6 +260,14 @@ export function updateUser(db: Database.Database, id: string, input: UpdateUserS
 			 WHERE id = ?`
 		)
 		.run(input.name.trim(), email, roleId, input.timezone, new Date().toISOString(), id);
+
+	if (result.changes === 0) throw new Error('User not found');
+}
+
+export function setUserLocale(db: Database.Database, id: string, locale: Locale): void {
+	const result = db
+		.prepare('UPDATE users SET locale = ?, updated_at = ? WHERE id = ?')
+		.run(locale, new Date().toISOString(), id);
 
 	if (result.changes === 0) throw new Error('User not found');
 }

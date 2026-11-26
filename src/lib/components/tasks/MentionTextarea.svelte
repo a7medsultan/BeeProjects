@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { buildMentionToken, mentionQueryAt } from '#lib/mentions.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
 
 	interface Member {
 		userId: string;
@@ -22,9 +23,12 @@
 		name = 'body',
 		value = $bindable(''),
 		members,
-		placeholder = 'Write a comment…',
+		placeholder = '',
 		rows = 4
 	}: Props = $props();
+
+	const { t } = useI18n();
+	const placeholderText = $derived(placeholder || t('tasks.detail.commentPlaceholder'));
 
 	let textarea = $state<HTMLTextAreaElement | null>(null);
 	let query = $state<{ query: string; start: number } | null>(null);
@@ -75,7 +79,8 @@
 		{id}
 		{name}
 		{rows}
-		{placeholder}
+		placeholder={placeholderText}
+		dir="auto"
 		bind:this={textarea}
 		bind:value
 		oninput={handleInput}
@@ -88,17 +93,18 @@
 		<div
 			class="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
 			role="listbox"
-			aria-label="Mention a project member"
+			aria-label={t('tasks.detail.commentPlaceholder')}
 		>
 			{#each filtered as member (member.userId)}
 				<button
 					type="button"
-					class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-indigo-50"
+					class="flex w-full items-center justify-between gap-3 px-3 py-2 text-start text-sm transition hover:bg-indigo-50"
 					onmousedown={(event) => event.preventDefault()}
 					onclick={() => selectMember(member)}
 				>
-					<span class="truncate font-medium text-slate-800">{member.name}</span>
-					<span class="truncate text-xs text-slate-400">{member.email}</span>
+					<span dir="auto" class="user-text truncate font-medium text-slate-800">{member.name}</span
+					>
+					<span dir="ltr" class="ltr-text truncate text-xs text-slate-400">{member.email}</span>
 				</button>
 			{/each}
 		</div>

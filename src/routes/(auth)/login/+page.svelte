@@ -2,9 +2,12 @@
 	import { LogIn, ShieldCheck } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
+	import { useI18n } from '#lib/i18n/index.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const { t } = useI18n();
 
 	const { form, errors, message, enhance, submitting } = superForm(
 		untrack(() => data.form),
@@ -15,7 +18,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign in · BeeProjects</title>
+	<title>{t('auth.pageTitle')}</title>
 </svelte:head>
 
 <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -24,14 +27,14 @@
 			<ShieldCheck class="h-5 w-5" />
 		</span>
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight text-slate-900">Sign in</h1>
-			<p class="mt-1 text-sm text-slate-500">Use the account your administrator created.</p>
+			<h1 class="text-xl font-semibold tracking-tight text-slate-900">{t('auth.title')}</h1>
+			<p class="mt-1 text-sm text-slate-500">{t('auth.subtitle')}</p>
 		</div>
 	</div>
 
 	{#if data.loggedOut}
 		<p class="mt-5 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-			You have been signed out.
+			{t('auth.loggedOut')}
 		</p>
 	{/if}
 
@@ -55,13 +58,16 @@
 		<input type="hidden" name="redirectTo" bind:value={$form.redirectTo} />
 
 		<div>
-			<label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+			<label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">
+				{t('auth.email')}
+			</label>
 			<input
 				id="email"
 				name="email"
 				type="email"
+				dir="ltr"
 				autocomplete="username"
-				placeholder="you@example.com"
+				placeholder={t('auth.emailPlaceholder')}
 				bind:value={$form.email}
 				aria-invalid={$errors.email ? 'true' : undefined}
 				aria-describedby={$errors.email ? 'email-error' : undefined}
@@ -74,14 +80,15 @@
 
 		<div>
 			<label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">
-				Password
+				{t('auth.password')}
 			</label>
 			<input
 				id="password"
 				name="_password"
 				type="password"
+				dir="ltr"
 				autocomplete="current-password"
-				placeholder="••••••••••"
+				placeholder={t('auth.passwordPlaceholder')}
 				bind:value={$form._password}
 				aria-invalid={$errors._password ? 'true' : undefined}
 				aria-describedby={$errors._password ? 'password-error' : undefined}
@@ -97,13 +104,12 @@
 			disabled={$submitting}
 			class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
 		>
-			<LogIn class="h-4 w-4" />
-			{$submitting ? 'Signing in…' : 'Sign in'}
+			<LogIn class="h-4 w-4 rtl:-scale-x-100" />
+			{$submitting ? t('common.loading') : t('auth.submit')}
 		</button>
 	</form>
 
 	<p class="mt-4 text-xs leading-5 text-slate-500">
-		Forgot your password? Ask an administrator to reset it. There is no email-based reset in Phase
-		0.
+		{t('auth.forgotPassword')}
 	</p>
 </div>

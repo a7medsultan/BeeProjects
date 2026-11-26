@@ -44,6 +44,7 @@ export function runDeadlineNotifications(db: ReturnType<typeof getDb>, now = new
 				type: 'due_soon',
 				title: 'Task due tomorrow',
 				body: `${row.title} · ${row.project_name}`,
+				payload: { taskTitle: row.title, projectName: row.project_name },
 				projectId: row.project_id,
 				taskId: row.id,
 				dedupeKey: `due_soon:${row.id}:${row.user_id}:${row.due_date}`
@@ -56,6 +57,7 @@ export function runDeadlineNotifications(db: ReturnType<typeof getDb>, now = new
 				type: 'overdue',
 				title: 'Task is overdue',
 				body: `${row.title} · ${row.project_name}`,
+				payload: { taskTitle: row.title, projectName: row.project_name },
 				projectId: row.project_id,
 				taskId: row.id,
 				dedupeKey: `overdue:${row.id}:${row.user_id}:${row.due_date}`

@@ -1,76 +1,124 @@
 import type { ActivityItem } from './types.ts';
+import type { MessageKey } from './i18n/messages/en.ts';
+import type { I18n } from './i18n/index.ts';
+import { enumLabelKey } from './i18n/labels.ts';
 
-const FIELD_LABELS: Record<string, string> = {
-	name: 'the project name',
-	description: 'the description',
-	start_date: 'the start date',
-	due_date: 'the due date',
-	priority: 'the priority',
-	status: 'the status',
-	owner: 'the owner',
-	title: 'the task title'
+type Translate = I18n['t'];
+
+const FIELD_KEYS: Record<string, MessageKey> = {
+	name: 'activity.field.name',
+	description: 'activity.field.description',
+	start_date: 'activity.field.start_date',
+	due_date: 'activity.field.due_date',
+	priority: 'activity.field.priority',
+	status: 'activity.field.status',
+	owner: 'activity.field.owner',
+	title: 'activity.field.title'
 };
 
-function formatValue(value: string | null): string {
-	if (!value) return 'empty';
+function formatValue(value: string | null, field: string | null, t: Translate): string {
+	if (!value) return t('activity.value.empty');
+
+	const enumKey = enumLabelKey(value);
+	if (enumKey && (field === 'status' || field === 'priority')) {
+		return t(enumKey);
+	}
 
 	const normalized = value.replace(/\s+/g, ' ').trim();
 	return normalized.length > 120 ? `${normalized.slice(0, 117)}…` : normalized;
 }
 
-function describeUpdate(item: ActivityItem): string {
-	const field = (item.field && FIELD_LABELS[item.field]) ?? item.field ?? 'details';
+function describeUpdate(item: ActivityItem, t: Translate): string {
+	const fieldKey = item.field ? FIELD_KEYS[item.field] : null;
+	const field = fieldKey ? t(fieldKey) : (item.field ?? t('activity.field.details'));
 
 	if (item.oldValue && item.newValue) {
-		return `${item.actorName} changed ${field} from “${formatValue(item.oldValue)}” to “${formatValue(item.newValue)}”`;
+		return t('activity.update.fromTo', {
+			actor: item.actorName,
+			field,
+			old: formatValue(item.oldValue, item.field, t),
+			new: formatValue(item.newValue, item.field, t)
+		});
 	}
 
 	if (item.newValue) {
-		return `${item.actorName} set ${field} to “${formatValue(item.newValue)}”`;
+		return t('activity.update.setTo', {
+			actor: item.actorName,
+			field,
+			value: formatValue(item.newValue, item.field, t)
+		});
 	}
 
-	return `${item.actorName} cleared ${field}`;
+	return t('activity.update.cleared', { actor: item.actorName, field });
 }
 
-export function describeActivity(item: ActivityItem): string {
+export function describeActivity(item: ActivityItem, t: Translate): string {
 	switch (item.action) {
 		case 'project.created':
-			return `${item.actorName} created the project`;
+			return t('activity.project.created', { actor: item.actorName });
 		case 'project.updated':
-			return describeUpdate(item);
+			return describeUpdate(item, t);
 		case 'project.archived':
-			return `${item.actorName} archived the project`;
+			return t('activity.project.archived', { actor: item.actorName });
 		case 'project.unarchived':
-			return `${item.actorName} restored the project`;
+			return t('activity.project.unarchived', { actor: item.actorName });
 		case 'project.owner_changed':
-			return `${item.actorName} changed the owner from ${formatValue(item.oldValue)} to ${formatValue(item.newValue)}`;
+			return t('activity.project.ownerChanged', {
+				actor: item.actorName,
+				old: formatValue(item.oldValue, item.field, t),
+				new: formatValue(item.newValue, item.field, t)
+			});
 		case 'project.member_added':
-			return `${item.actorName} added ${formatValue(item.newValue)} to the project`;
+			return t('activity.project.memberAdded', {
+				actor: item.actorName,
+				member: formatValue(item.newValue, item.field, t)
+			});
 		case 'project.member_removed':
-			return `${item.actorName} removed ${formatValue(item.oldValue)} from the project`;
+			return t('activity.project.memberRemoved', {
+				actor: item.actorName,
+				member: formatValue(item.oldValue, item.field, t)
+			});
 		case 'task.created':
-			return `${item.actorName} created the task`;
+			return t('activity.task.created', { actor: item.actorName });
 		case 'task.updated':
-			return describeUpdate(item);
+			return describeUpdate(item, t);
 		case 'task.status_changed':
-			return `${item.actorName} moved the task to ${formatValue(item.newValue)}`;
+			return t('activity.task.statusChanged', {
+				actor: item.actorName,
+				status: formatValue(item.newValue, 'status', t)
+			});
 		case 'task.assignee_added':
-			return `${item.actorName} assigned ${formatValue(item.newValue)}`;
+			return t('activity.task.assigneeAdded', {
+				actor: item.actorName,
+				assignee: formatValue(item.newValue, item.field, t)
+			});
 		case 'task.assignee_removed':
-			return `${item.actorName} unassigned ${formatValue(item.oldValue)}`;
+			return t('activity.task.assigneeRemoved', {
+				actor: item.actorName,
+				assignee: formatValue(item.oldValue, item.field, t)
+			});
 		case 'task.deleted':
-			return `${item.actorName} deleted the task`;
+			return t('activity.task.deleted', { actor: item.actorName });
 		case 'task.comment_added':
-			return `${item.actorName} commented on the task`;
+			return t('activity.task.commentAdded', { actor: item.actorName });
 		case 'task.comment_edited':
-			return `${item.actorName} edited a comment`;
+			return t('activity.task.commentEdited', { actor: item.actorName });
 		case 'task.comment_deleted':
-			return `${item.actorName} deleted a comment`;
+			return t('activity.task.commentDeleted', { actor: item.actorName });
 		case 'task.attachment_added':
-			return `${item.actorName} attached ${formatValue(item.newValue)}`;
+			return t('activity.task.attachmentAdded', {
+				actor: item.actorName,
+				file: formatValue(item.newValue, item.field, t)
+			});
 		case 'task.attachment_removed':
-			return `${item.actorName} removed the attachment ${formatValue(item.oldValue)}`;
+			return t('activity.task.attachmentRemoved', {
+				actor: item.actorName,
+				file: formatValue(item.oldValue, item.field, t)
+			});
 		default:
-			return `${item.actorName} updated ${item.field ?? 'the project'}`;
+			return t('activity.unknown', {
+				actor: item.actorName,
+				field: item.field ?? t('activity.field.details')
+			});
 	}
 }

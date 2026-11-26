@@ -3,8 +3,8 @@ import { message, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { UPLOAD_DIR } from '$app/env/private';
 import { resolve } from 'node:path';
-import { commentSchema } from '#lib/schemas/collaboration.ts';
-import { taskFormSchema } from '#lib/schemas/tasks.ts';
+import { createCommentSchema } from '#lib/schemas/collaboration.ts';
+import { createTaskFormSchema } from '#lib/schemas/tasks.ts';
 import { requireUser } from '#lib/server/auth/guards.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { getProjectSummary, listProjectMembers } from '#lib/server/services/projects.ts';
@@ -31,6 +31,7 @@ import {
 	TaskInputError,
 	updateTask
 } from '#lib/server/services/tasks.ts';
+import { localizeServerMessage, translate } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -75,7 +76,7 @@ export const load: PageServerLoad = async (event) => {
 				dueDate: detail.task.dueDate ?? '',
 				assigneeIds: detail.task.assignees.map((assignee) => assignee.userId)
 			},
-			zod4(taskFormSchema)
+			zod4(createTaskFormSchema(event.locals.locale))
 		)
 	};
 };
@@ -94,7 +95,7 @@ export const actions: Actions = {
 			error(403, 'You cannot edit this task');
 		}
 
-		const form = await superValidate(event, zod4(taskFormSchema));
+		const form = await superValidate(event, zod4(createTaskFormSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -115,13 +116,20 @@ export const actions: Actions = {
 			);
 		} catch (error) {
 			if (error instanceof TaskInputError) {
-				return message(form, { type: 'error', text: error.message }, { status: 400 });
+				return message(
+					form,
+					{ type: 'error', text: localizeServerMessage(event.locals.locale, error.message) },
+					{ status: 400 }
+				);
 			}
 
 			throw error;
 		}
 
-		return message(form, { type: 'success', text: 'Task updated.' });
+		return message(form, {
+			type: 'success',
+			text: translate(event.locals.locale, 'server.taskUpdated')
+		});
 	},
 
 	delete: async (event) => {
@@ -156,15 +164,19 @@ export const actions: Actions = {
 		}
 
 		if (!detail.projectAccess.isMember || detail.projectAccess.isArchived) {
-			return fail(403, { commentError: 'Archived projects are read-only.' });
+			return fail(403, { commentError: translate(event.locals.locale, 'errors.archivedReadOnly') });
 		}
 
 		const formData = await event.request.formData();
-		const parsed = commentSchema.safeParse({ body: formData.get('body') });
+		const parsed = createCommentSchema(event.locals.locale).safeParse({
+			body: formData.get('body')
+		});
 
 		if (!parsed.success) {
 			return fail(400, {
-				commentError: parsed.error.issues[0]?.message ?? 'Comment is invalid.'
+				commentError:
+					parsed.error.issues[0]?.message ??
+					translate(event.locals.locale, 'validation.commentInvalid')
 			});
 		}
 
@@ -177,13 +189,15 @@ export const actions: Actions = {
 			});
 		} catch (error) {
 			if (error instanceof CommentInputError) {
-				return fail(400, { commentError: error.message });
+				return fail(400, {
+					commentError: localizeServerMessage(event.locals.locale, error.message)
+				});
 			}
 
 			throw error;
 		}
 
-		return { commentNotice: 'Comment added.' };
+		return { commentNotice: translate(event.locals.locale, 'server.commentAdded') };
 	},
 
 	editComment: async (event) => {
@@ -191,18 +205,22 @@ export const actions: Actions = {
 		const db = getDb();
 		const formData = await event.request.formData();
 		const commentId = String(formData.get('commentId') ?? '');
-		const parsed = commentSchema.safeParse({ body: formData.get('body') });
+		const parsed = createCommentSchema(event.locals.locale).safeParse({
+			body: formData.get('body')
+		});
 
 		if (!parsed.success) {
 			return fail(400, {
-				commentError: parsed.error.issues[0]?.message ?? 'Comment is invalid.'
+				commentError:
+					parsed.error.issues[0]?.message ??
+					translate(event.locals.locale, 'validation.commentInvalid')
 			});
 		}
 
 		const comment = getComment(db, commentId);
 
 		if (!comment || comment.deleted_at) {
-			return fail(404, { commentError: 'Comment not found.' });
+			return fail(404, { commentError: translate(event.locals.locale, 'errors.commentNotFound') });
 		}
 
 		const detail = getTaskDetail(db, comment.task_id, user);
@@ -212,26 +230,30 @@ export const actions: Actions = {
 		}
 
 		if (detail.projectAccess.isArchived) {
-			return fail(403, { commentError: 'Archived projects are read-only.' });
+			return fail(403, { commentError: translate(event.locals.locale, 'errors.archivedReadOnly') });
 		}
 
 		const canManage = detail.projectAccess.isAdmin || detail.projectAccess.isOwner;
 
 		if (comment.author_id !== user.id && !canManage) {
-			return fail(403, { commentError: 'You cannot edit this comment.' });
+			return fail(403, {
+				commentError: translate(event.locals.locale, 'errors.editCommentForbidden')
+			});
 		}
 
 		try {
 			updateComment(db, comment, parsed.data.body, user.id, detail.task.projectId);
 		} catch (error) {
 			if (error instanceof CommentInputError) {
-				return fail(400, { commentError: error.message });
+				return fail(400, {
+					commentError: localizeServerMessage(event.locals.locale, error.message)
+				});
 			}
 
 			throw error;
 		}
 
-		return { commentNotice: 'Comment updated.' };
+		return { commentNotice: translate(event.locals.locale, 'server.commentUpdated') };
 	},
 
 	deleteComment: async (event) => {
@@ -242,7 +264,7 @@ export const actions: Actions = {
 		const comment = getComment(db, commentId);
 
 		if (!comment || comment.deleted_at) {
-			return fail(404, { commentError: 'Comment not found.' });
+			return fail(404, { commentError: translate(event.locals.locale, 'errors.commentNotFound') });
 		}
 
 		const detail = getTaskDetail(db, comment.task_id, user);
@@ -252,18 +274,20 @@ export const actions: Actions = {
 		}
 
 		if (detail.projectAccess.isArchived) {
-			return fail(403, { commentError: 'Archived projects are read-only.' });
+			return fail(403, { commentError: translate(event.locals.locale, 'errors.archivedReadOnly') });
 		}
 
 		const canManage = detail.projectAccess.isAdmin || detail.projectAccess.isOwner;
 
 		if (comment.author_id !== user.id && !canManage) {
-			return fail(403, { commentError: 'You cannot delete this comment.' });
+			return fail(403, {
+				commentError: translate(event.locals.locale, 'errors.deleteCommentForbidden')
+			});
 		}
 
 		deleteComment(db, comment, user.id);
 
-		return { commentNotice: 'Comment removed.' };
+		return { commentNotice: translate(event.locals.locale, 'server.commentRemoved') };
 	},
 
 	uploadAttachment: async (event) => {
@@ -276,14 +300,16 @@ export const actions: Actions = {
 		}
 
 		if (!detail.projectAccess.isMember || detail.projectAccess.isArchived) {
-			return fail(403, { attachmentError: 'Archived projects are read-only.' });
+			return fail(403, {
+				attachmentError: translate(event.locals.locale, 'errors.archivedReadOnly')
+			});
 		}
 
 		const formData = await event.request.formData();
 		const file = formData.get('file');
 
 		if (!(file instanceof File) || file.size === 0) {
-			return fail(400, { attachmentError: 'Choose a file to upload.' });
+			return fail(400, { attachmentError: translate(event.locals.locale, 'errors.chooseFile') });
 		}
 
 		try {
@@ -301,13 +327,15 @@ export const actions: Actions = {
 			);
 		} catch (error) {
 			if (error instanceof AttachmentError) {
-				return fail(400, { attachmentError: error.message });
+				return fail(400, {
+					attachmentError: localizeServerMessage(event.locals.locale, error.message)
+				});
 			}
 
 			throw error;
 		}
 
-		return { attachmentNotice: 'Attachment uploaded.' };
+		return { attachmentNotice: translate(event.locals.locale, 'server.attachmentUploaded') };
 	},
 
 	deleteAttachment: async (event) => {
@@ -318,7 +346,9 @@ export const actions: Actions = {
 		const attachment = getAttachmentRecord(db, attachmentId);
 
 		if (!attachment) {
-			return fail(404, { attachmentError: 'Attachment not found.' });
+			return fail(404, {
+				attachmentError: translate(event.locals.locale, 'errors.attachmentNotFound')
+			});
 		}
 
 		const detail = getTaskDetail(db, attachment.taskId, user);
@@ -328,17 +358,21 @@ export const actions: Actions = {
 		}
 
 		if (detail.projectAccess.isArchived) {
-			return fail(403, { attachmentError: 'Archived projects are read-only.' });
+			return fail(403, {
+				attachmentError: translate(event.locals.locale, 'errors.archivedReadOnly')
+			});
 		}
 
 		const canManage = detail.projectAccess.isAdmin || detail.projectAccess.isOwner;
 
 		if (attachment.uploadedById !== user.id && !canManage) {
-			return fail(403, { attachmentError: 'You cannot delete this attachment.' });
+			return fail(403, {
+				attachmentError: translate(event.locals.locale, 'errors.deleteAttachmentForbidden')
+			});
 		}
 
 		deleteAttachment(db, attachment, user);
 
-		return { attachmentNotice: 'Attachment removed.' };
+		return { attachmentNotice: translate(event.locals.locale, 'server.attachmentRemoved') };
 	}
 };

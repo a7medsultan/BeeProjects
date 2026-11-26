@@ -1,7 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { updateUserSchema } from '#lib/schemas/users.ts';
+import { createUpdateUserSchema } from '#lib/schemas/users.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { requireAdmin } from '#lib/server/auth/guards.ts';
 import { revokeAllUserSessions } from '#lib/server/auth/session.ts';
@@ -14,6 +14,7 @@ import {
 	updateUser,
 	UserEmailConflictError
 } from '#lib/server/services/users.ts';
+import { localizeServerMessage, translate } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -29,7 +30,7 @@ export const load: PageServerLoad = async (event) => {
 		managedUser: user,
 		form: await superValidate(
 			{ name: user.name, email: user.email, role: user.role, timezone: user.timezone },
-			zod4(updateUserSchema)
+			zod4(createUpdateUserSchema(event.locals.locale))
 		),
 		timezones: getSupportedTimezones(),
 		activeAdminCount: countActiveAdmins(db)
@@ -39,14 +40,14 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	update: async (event) => {
 		const actor = requireAdmin(event);
-		const form = await superValidate(event, zod4(updateUserSchema));
+		const form = await superValidate(event, zod4(createUpdateUserSchema(event.locals.locale)));
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
 		if (!isValidTimezone(form.data.timezone)) {
-			setError(form, 'timezone', 'Select a valid timezone.');
+			setError(form, 'timezone', translate(event.locals.locale, 'validation.timezoneInvalid'));
 			return fail(400, { form });
 		}
 
@@ -60,7 +61,7 @@ export const actions: Actions = {
 		const isSelf = target.id === actor.id;
 
 		if (isSelf && form.data.role !== 'admin') {
-			setError(form, 'role', 'You cannot change your own role.');
+			setError(form, 'role', translate(event.locals.locale, 'errors.cannotChangeOwnRole'));
 			return fail(400, { form });
 		}
 
@@ -70,12 +71,12 @@ export const actions: Actions = {
 			target.isActive &&
 			countActiveAdmins(db) <= 1
 		) {
-			setError(form, 'role', 'The last active admin cannot be demoted.');
+			setError(form, 'role', translate(event.locals.locale, 'errors.lastAdminDemote'));
 			return fail(400, { form });
 		}
 
 		if (form.data.role === 'member' && target.ownedProjects > 0) {
-			setError(form, 'role', 'Transfer ownership of this user’s projects first.');
+			setError(form, 'role', translate(event.locals.locale, 'errors.transferOwnership'));
 			return fail(400, { form });
 		}
 
@@ -88,7 +89,7 @@ export const actions: Actions = {
 			});
 		} catch (error) {
 			if (error instanceof UserEmailConflictError) {
-				setError(form, 'email', error.message);
+				setError(form, 'email', localizeServerMessage(event.locals.locale, error.message));
 				return fail(400, { form });
 			}
 
@@ -104,7 +105,10 @@ export const actions: Actions = {
 			};
 		}
 
-		return message(form, { type: 'success', text: 'User updated.' });
+		return message(form, {
+			type: 'success',
+			text: translate(event.locals.locale, 'server.userUpdated')
+		});
 	},
 
 	deactivate: async (event) => {
@@ -117,23 +121,27 @@ export const actions: Actions = {
 		}
 
 		if (target.id === actor.id) {
-			return fail(400, { error: 'You cannot deactivate your own account.' });
+			return fail(400, { error: translate(event.locals.locale, 'errors.cannotDeactivateSelf') });
 		}
 
 		if (target.isActive && target.role === 'admin' && countActiveAdmins(db) <= 1) {
-			return fail(400, { error: 'The last active admin cannot be deactivated.' });
+			return fail(400, { error: translate(event.locals.locale, 'errors.lastAdminDeactivate') });
 		}
 
 		if (target.isActive && target.ownedProjects > 0) {
 			return fail(400, {
-				error: 'Transfer ownership of this user’s projects before deactivating the account.'
+				error: translate(event.locals.locale, 'server.transferBeforeDeactivate')
 			});
 		}
 
 		setUserActive(db, target.id, false);
 		revokeAllUserSessions(db, target.id);
 
-		return { notice: `${target.name} has been deactivated and signed out.` };
+		return {
+			notice: translate(event.locals.locale, 'server.userDeactivatedName', {
+				name: target.name
+			})
+		};
 	},
 
 	reactivate: async (event) => {
@@ -147,7 +155,11 @@ export const actions: Actions = {
 
 		setUserActive(db, target.id, true);
 
-		return { notice: `${target.name} has been reactivated.` };
+		return {
+			notice: translate(event.locals.locale, 'server.userReactivatedName', {
+				name: target.name
+			})
+		};
 	},
 
 	resetPassword: async (event) => {
@@ -161,7 +173,7 @@ export const actions: Actions = {
 
 		if (target.id === actor.id) {
 			return fail(400, {
-				error: 'Use the profile page to change your own password.'
+				error: translate(event.locals.locale, 'server.resetOwnPassword')
 			});
 		}
 

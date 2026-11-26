@@ -1,15 +1,23 @@
 import { z } from 'zod';
+import { translate } from '#lib/i18n/index.ts';
+import type { Locale } from '#lib/i18n/locales.ts';
 
-export const roleSchema = z.enum(['admin', 'project_manager', 'member']);
+const roleSchema = z.enum(['admin', 'project_manager', 'member']);
 
-export const createUserSchema = z.object({
-	name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
-	email: z.email('Enter a valid email address').max(254),
-	role: roleSchema,
-	timezone: z.string().trim().min(1, 'Select a timezone').max(64)
-});
+export function createUserSchema(locale: Locale = 'en') {
+	const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
-export const updateUserSchema = createUserSchema;
+	return z.object({
+		name: z.string().trim().min(2, t('validation.nameMin')).max(100, t('validation.nameMax')),
+		email: z.email(t('validation.emailInvalid')).max(254, t('validation.emailTooLong')),
+		role: roleSchema,
+		timezone: z.string().trim().min(1, t('validation.timezoneRequired')).max(64)
+	});
+}
+
+export function createUpdateUserSchema(locale: Locale = 'en') {
+	return createUserSchema(locale);
+}
 
 export const userListQuerySchema = z.object({
 	q: z.string().trim().max(100).optional().default(''),
@@ -19,6 +27,6 @@ export const userListQuerySchema = z.object({
 	pageSize: z.coerce.number().int().min(5).max(100).default(20)
 });
 
-export type CreateUserInput = z.infer<typeof createUserSchema>;
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type CreateUserInput = z.infer<ReturnType<typeof createUserSchema>>;
+export type UpdateUserInput = z.infer<ReturnType<typeof createUpdateUserSchema>>;
 export type UserListQuery = z.infer<typeof userListQuerySchema>;

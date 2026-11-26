@@ -1,17 +1,23 @@
-export function formatDateTime(value: string | null | undefined, timezone = 'UTC'): string {
+import { localeForIntl, type Locale } from './i18n/locales.ts';
+
+export function formatDateTime(
+	value: string | null | undefined,
+	timezone = 'UTC',
+	locale: Locale = 'en'
+): string {
 	if (!value) return '—';
 
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return '—';
 
 	try {
-		return new Intl.DateTimeFormat('en', {
+		return new Intl.DateTimeFormat(localeForIntl(locale), {
 			dateStyle: 'medium',
 			timeStyle: 'short',
 			timeZone: timezone
 		}).format(date);
 	} catch {
-		return new Intl.DateTimeFormat('en', {
+		return new Intl.DateTimeFormat(localeForIntl(locale), {
 			dateStyle: 'medium',
 			timeStyle: 'short',
 			timeZone: 'UTC'
@@ -19,16 +25,20 @@ export function formatDateTime(value: string | null | undefined, timezone = 'UTC
 	}
 }
 
-export function formatDate(value: string | null | undefined): string {
+export function formatDate(value: string | null | undefined, locale: Locale = 'en'): string {
 	if (!value) return '—';
 
 	const date = new Date(`${value}T00:00:00Z`);
 	if (Number.isNaN(date.getTime())) return '—';
 
-	return new Intl.DateTimeFormat('en', {
+	return new Intl.DateTimeFormat(localeForIntl(locale), {
 		dateStyle: 'medium',
 		timeZone: 'UTC'
 	}).format(date);
+}
+
+export function formatNumber(value: number, locale: Locale = 'en'): string {
+	return new Intl.NumberFormat(localeForIntl(locale)).format(value);
 }
 
 export function localDateISO(timezone: string, date = new Date()): string {
@@ -63,8 +73,8 @@ export function isDueSoon(dueDate: string | null | undefined, timezone: string):
 	return dueDate >= today && dueDate <= addDaysISO(today, 7);
 }
 
-export function formatFileSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+export function formatFileSize(bytes: number, locale: Locale = 'en'): string {
+	if (bytes < 1024) return `${formatNumber(bytes, locale)} B`;
+	if (bytes < 1024 * 1024) return `${formatNumber(bytes / 1024, locale)} KB`;
+	return `${formatNumber(bytes / (1024 * 1024), locale)} MB`;
 }

@@ -22,11 +22,21 @@ const initialSchema = readFileSync(
 	new URL('../../src/lib/server/db/migrations/001_init.sql', import.meta.url),
 	'utf8'
 );
+const localeSchema = readFileSync(
+	new URL(
+		'../../src/lib/server/db/migrations/002_locale_and_notification_payload.sql',
+		import.meta.url
+	),
+	'utf8'
+);
 
 function makeDb(): Database.Database {
 	const db = new Database(':memory:');
 	db.pragma('foreign_keys = ON');
-	applyMigrations(db, [{ version: '001_init', sql: initialSchema }]);
+	applyMigrations(db, [
+		{ version: '001_init', sql: initialSchema },
+		{ version: '002_locale_and_notification_payload', sql: localeSchema }
+	]);
 	return db;
 }
 
@@ -45,6 +55,7 @@ async function makeUser(
 		name: user.name,
 		email: user.email,
 		role: user.role,
+		locale: user.locale,
 		timezone: user.timezone,
 		mustChangePassword: user.mustChangePassword
 	};

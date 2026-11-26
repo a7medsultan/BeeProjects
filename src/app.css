@@ -1,8 +1,11 @@
 @import '@fontsource-variable/inter';
+@import '@fontsource-variable/noto-sans-arabic';
 @import 'tailwindcss';
 
 @theme {
 	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-arabic:
+		'Noto Sans Arabic Variable', 'Noto Sans Arabic', 'Segoe UI', Tahoma, ui-sans-serif, sans-serif;
 }
 
 :root {
@@ -21,6 +24,24 @@ body {
 	font-family: var(--font-sans);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+html[lang='ar'] body {
+	font-family: var(--font-arabic);
+	line-height: 1.65;
+}
+
+html[lang='ar'] :where(.tracking-tight, .tracking-wide, .tracking-wider, .tracking-widest) {
+	letter-spacing: 0;
+}
+
+.user-text {
+	unicode-bidi: plaintext;
+}
+
+.ltr-text {
+	direction: ltr;
+	unicode-bidi: isolate;
 }
 
 :focus-visible {

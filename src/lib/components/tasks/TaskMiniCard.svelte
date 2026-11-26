@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { ListChecks } from '@lucide/svelte';
-	import {
-		TASK_PRIORITY_CLASSES,
-		TASK_PRIORITY_LABELS,
-		TASK_STATUS_CLASSES,
-		TASK_STATUS_LABELS
-	} from '#lib/constants.ts';
+	import { TASK_PRIORITY_CLASSES, TASK_STATUS_CLASSES } from '#lib/constants.ts';
 	import { formatDate, isDueSoon } from '#lib/format.ts';
+	import { useI18n } from '#lib/i18n/index.ts';
+	import { TASK_PRIORITY_KEYS, TASK_STATUS_KEYS } from '#lib/i18n/labels.ts';
 	import type { TaskListItem } from '#lib/types.ts';
 
 	interface Props {
@@ -18,6 +15,8 @@
 
 	let { task, timezone, showProject = false }: Props = $props();
 
+	const { t, locale } = useI18n();
+
 	const dueSoon = $derived(task.status !== 'Done' && isDueSoon(task.dueDate, timezone));
 </script>
 
@@ -25,7 +24,8 @@
 	<div class="flex items-start justify-between gap-2">
 		<a
 			href={resolve('/(app)/tasks/[id]', { id: task.id })}
-			class="min-w-0 text-sm font-medium text-slate-800 hover:text-indigo-700"
+			dir="auto"
+			class="user-text min-w-0 text-sm font-medium text-slate-800 hover:text-indigo-700"
 		>
 			{task.title}
 		</a>
@@ -35,7 +35,7 @@
 				TASK_PRIORITY_CLASSES[task.priority]
 			]}
 		>
-			{TASK_PRIORITY_LABELS[task.priority]}
+			{t(TASK_PRIORITY_KEYS[task.priority])}
 		</span>
 	</div>
 
@@ -43,7 +43,8 @@
 		{#if showProject}
 			<a
 				href={resolve('/(app)/projects/[id]', { id: task.projectId })}
-				class="max-w-40 truncate font-medium text-slate-600 hover:text-indigo-700"
+				dir="auto"
+				class="user-text max-w-40 truncate font-medium text-slate-600 hover:text-indigo-700"
 			>
 				{task.projectName}
 			</a>
@@ -51,7 +52,7 @@
 		<span
 			class={['rounded-full px-2 py-0.5 text-[11px] font-medium', TASK_STATUS_CLASSES[task.status]]}
 		>
-			{TASK_STATUS_LABELS[task.status]}
+			{t(TASK_STATUS_KEYS[task.status])}
 		</span>
 		{#if task.dueDate}
 			<span
@@ -60,11 +61,11 @@
 					task.isOverdue ? 'font-medium text-rose-600' : dueSoon ? 'font-medium text-amber-600' : ''
 				]}
 			>
-				{formatDate(task.dueDate)}
+				{formatDate(task.dueDate, locale)}
 				{#if task.isOverdue}
-					· Overdue
+					· {t('common.overdue')}
 				{:else if dueSoon}
-					· Due soon
+					· {t('common.dueSoon')}
 				{/if}
 			</span>
 		{/if}
@@ -78,11 +79,14 @@
 
 	<div class="mt-2 flex flex-wrap gap-1">
 		{#each task.assignees as assignee (assignee.userId)}
-			<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">
-				{assignee.name}{assignee.isActive ? '' : ' (inactive)'}
+			<span
+				dir="auto"
+				class="user-text rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600"
+			>
+				{assignee.name}{assignee.isActive ? '' : ` (${t('common.inactive')})`}
 			</span>
 		{:else}
-			<span class="text-[11px] text-slate-400">Unassigned</span>
+			<span class="text-[11px] text-slate-400">{t('common.unassigned')}</span>
 		{/each}
 	</div>
 </div>

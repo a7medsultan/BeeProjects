@@ -5,6 +5,7 @@ import { requireUser } from '#lib/server/auth/guards.ts';
 import { getDb } from '#lib/server/db/index.ts';
 import { requireProjectAccess } from '#lib/server/permissions.ts';
 import { getTaskDetail, listBoardTasks, moveTaskStatus } from '#lib/server/services/tasks.ts';
+import { translate } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -26,27 +27,27 @@ export const actions: Actions = {
 		const statusResult = z.enum(TASK_STATUSES).safeParse(String(formData.get('status') ?? ''));
 
 		if (!taskId) {
-			return fail(400, { error: 'Task is required.' });
+			return fail(400, { error: translate(event.locals.locale, 'errors.taskRequired') });
 		}
 
 		if (!statusResult.success) {
-			return fail(400, { error: 'Invalid task status.' });
+			return fail(400, { error: translate(event.locals.locale, 'errors.invalidTaskStatus') });
 		}
 
 		const detail = getTaskDetail(db, taskId, user);
 
 		if (!detail || detail.task.projectId !== event.params.id) {
-			return fail(404, { error: 'Task not found.' });
+			return fail(404, { error: translate(event.locals.locale, 'errors.taskNotFound') });
 		}
 
 		if (!detail.permissions.canEdit) {
-			return fail(403, { error: 'You cannot move this task.' });
+			return fail(403, { error: translate(event.locals.locale, 'errors.cannotMoveTask') });
 		}
 
 		const updated = moveTaskStatus(db, taskId, statusResult.data, user);
 
 		if (!updated) {
-			return fail(404, { error: 'Task not found.' });
+			return fail(404, { error: translate(event.locals.locale, 'errors.taskNotFound') });
 		}
 
 		return {

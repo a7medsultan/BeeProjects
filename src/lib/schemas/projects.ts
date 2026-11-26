@@ -1,27 +1,37 @@
 import { z } from 'zod';
+import { translate } from '#lib/i18n/index.ts';
+import type { Locale } from '#lib/i18n/locales.ts';
 import { PROJECT_OPEN_STATUSES, PROJECT_PRIORITIES, PROJECT_STATUSES } from '../constants.ts';
 
-const optionalDate = z
-	.string()
-	.regex(/^\d{4}-\d{2}-\d{2}$/, 'Use the YYYY-MM-DD format')
-	.or(z.literal(''))
-	.optional()
-	.default('');
+export function createProjectFormSchema(locale: Locale = 'en') {
+	const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
-export const projectFormSchema = z
-	.object({
-		name: z.string().trim().min(2, 'Project name must be at least 2 characters').max(120),
-		description: z.string().trim().max(5000, 'Description is too long').default(''),
-		startDate: optionalDate,
-		dueDate: optionalDate,
-		priority: z.enum(PROJECT_PRIORITIES),
-		status: z.enum(PROJECT_OPEN_STATUSES),
-		ownerId: z.string().max(64).optional().default('')
-	})
-	.refine((data) => !data.startDate || !data.dueDate || data.dueDate >= data.startDate, {
-		message: 'Due date must be on or after the start date',
-		path: ['dueDate']
-	});
+	const optionalDate = z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, t('validation.dateFormat'))
+		.or(z.literal(''))
+		.optional()
+		.default('');
+
+	return z
+		.object({
+			name: z
+				.string()
+				.trim()
+				.min(2, t('validation.projectNameMin'))
+				.max(120, t('validation.projectNameMax')),
+			description: z.string().trim().max(5000, t('validation.descriptionMax')).default(''),
+			startDate: optionalDate,
+			dueDate: optionalDate,
+			priority: z.enum(PROJECT_PRIORITIES),
+			status: z.enum(PROJECT_OPEN_STATUSES),
+			ownerId: z.string().max(64).optional().default('')
+		})
+		.refine((data) => !data.startDate || !data.dueDate || data.dueDate >= data.startDate, {
+			message: t('validation.dueAfterStart'),
+			path: ['dueDate']
+		});
+}
 
 export const projectListQuerySchema = z.object({
 	q: z.string().trim().max(100).optional().default(''),
@@ -34,5 +44,5 @@ export const projectListQuerySchema = z.object({
 	pageSize: z.coerce.number().int().min(4).max(48).default(12)
 });
 
-export type ProjectFormInput = z.infer<typeof projectFormSchema>;
+export type ProjectFormInput = z.infer<ReturnType<typeof createProjectFormSchema>>;
 export type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
