@@ -171,6 +171,13 @@ pnpm test:e2e                           # fresh E2E DB + Playwright
 | `pnpm db:migrate`  | Apply pending SQL migrations                                  |
 | `pnpm db:seed`     | Apply migrations and create the first admin if no users exist |
 
+Server helpers:
+
+| Script                         | Purpose                                                             |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `scripts/backup.sh`            | Back up SQLite and attachments with retention                       |
+| `scripts/subdomain-manager.sh` | Add or delete Apache virtual hosts, with optional Let's Encrypt TLS |
+
 ## Database
 
 - File: `data/app.db` (`DATABASE_PATH` overrides)
@@ -214,10 +221,10 @@ Production builds enable a SvelteKit CSP with self-only scripts, nonces/hashes,
 and `frame-ancestors 'none'`. `X-Frame-Options`, `nosniff`, and a strict
 referrer policy are also set by the app.
 
-For a complete Ubuntu VPS deployment with Node, systemd, Caddy, TLS, updates,
-and scheduled backups, see the VPS section below.
+For a complete Ubuntu VPS deployment with Node, systemd, a reverse proxy, TLS,
+updates, and scheduled backups, see the VPS section below.
 
-## Deploy on a VPS (Ubuntu + systemd + Caddy)
+## Deploy on a VPS (Ubuntu + systemd)
 
 These instructions assume:
 
@@ -227,13 +234,17 @@ These instructions assume:
 - App directory `/srv/beeprojects`
 - One app instance (SQLite and the in-process jobs assume a single writer)
 
+The examples use `/srv/beeprojects`; replace it with `/opt/BeeProjects` if that
+is where you installed the app. If Apache already owns ports 80/443, skip Caddy
+and use the [Apache subdomain manager](#apache-subdomains-optional) instead.
+
 ### 1. DNS and firewall
 
 Create the DNS record first, then allow only SSH and HTTP(S):
 
 ```bash
 sudo apt update
-sudo apt install -y curl git build-essential python3 sqlite3 caddy ufw
+sudo apt install -y curl git build-essential python3 sqlite3 ufw
 
 sudo ufw allow OpenSSH
 sudo ufw allow 80/tcp
@@ -241,8 +252,21 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-Do **not** expose port 3000 publicly. The app binds to `127.0.0.1` and Caddy
-proxies to it.
+Install Caddy only if you use the Caddy proxy in step 7:
+
+```bash
+sudo apt install -y caddy
+```
+
+If Apache already owns ports 80/443, do not install Caddy. Install Certbot for
+the Apache subdomain manager instead:
+
+```bash
+sudo apt install -y apache2 certbot python3-certbot-apache
+```
+
+Do **not** expose port 3000 publicly. The app binds to `127.0.0.1` and the
+reverse proxy forwards requests to it.
 
 ### 2. Install Node.js and pnpm
 
@@ -377,9 +401,15 @@ curl http://127.0.0.1:3000/health
 If Node is not at `/usr/bin/node`, set `ExecStart` to the path from
 `command -v node`.
 
-### 7. Put Caddy in front
+### 7. Put a reverse proxy in front (Caddy or Apache)
 
-Replace `/etc/caddy/Caddyfile` with:
+If Apache already serves ports 80/443, for example for an existing PHP site, do
+**not** install Caddy or nginx. Keep Apache and use the
+[Apache subdomain manager](#apache-subdomains-optional) below. Running two web
+servers on the same ports causes `bind: address already in use`.
+
+The Caddy example in this step is for a server where nothing else owns ports
+80/443. Replace `/etc/caddy/Caddyfile` with:
 
 ```caddyfile
 projects.example.com {
@@ -413,6 +443,21 @@ profile page immediately. After the first login you can remove or replace
 If you use nginx instead, set `client_max_body_size 12m;` and forward
 `Host`, `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For` to
 `http://127.0.0.1:3000`.
+
+If you already run Apache, use the subdomain manager instead of hand-writing
+the vhost:
+
+```bash
+sudo ./scripts/subdomain-manager.sh add \
+  --domain projects.example.com \
+  --type proxy \
+  --target http://127.0.0.1:3000 \
+  --ssl \
+  --email admin@example.com
+```
+
+See [Apache subdomains](#apache-subdomains-optional) for the full workflow and
+safety behavior.
 
 ### 8. Deploying updates
 
@@ -462,7 +507,8 @@ See the Backups section below for retention, restore steps, and offsite copies.
 
 ```bash
 sudo journalctl -u beeprojects -f
-sudo journalctl -u caddy -f
+sudo journalctl -u apache2 -f   # Apache deployments
+sudo journalctl -u caddy -f     # Caddy deployments only
 curl http://127.0.0.1:3000/health
 ```
 
@@ -487,6 +533,212 @@ curl http://127.0.0.1:3000/health
 - Copy backups off the VPS (another host or object storage).
 - Run a single instance; SQLite and in-process jobs are not multi-node.
 - Consider fail2ban and automatic security updates for the SSH endpoint.
+
+## Apache subdomains (optional)
+
+`scripts/subdomain-manager.sh` creates and removes Apache virtual hosts on
+Ubuntu/Debian. Use it when Apache already serves ports 80/443 instead of adding
+Caddy or nginx.
+
+Requirements:
+
+- Apache 2.4 with `a2ensite`/`a2dissite`
+- Root access (`sudo`)
+- A DNS A/AAAA record pointing at the server
+- `certbot` and `python3-certbot-apache` when using `--ssl`
+
+```bash
+sudo apt install -y apache2 certbot python3-certbot-apache
+```
+
+It supports two modes:
+
+- **proxy** (default) - reverse-proxies the domain to the BeeProjects Node app
+  at `http://127.0.0.1:3000`. The script never uses `/opt/BeeProjects` or the
+  repository as a document root.
+- **static** - serves a normal document root for a static site or PHP app.
+
+Every config written by the script starts with
+`# Managed by BeeProjects subdomain-manager`. Delete refuses to touch a vhost
+without that marker unless `--force` is given.
+
+### Usage
+
+Run the script as root from the app directory. With no arguments it opens an
+interactive menu:
+
+```bash
+cd /opt/BeeProjects
+sudo ./scripts/subdomain-manager.sh
+```
+
+Add a BeeProjects reverse proxy with Let's Encrypt TLS:
+
+```bash
+sudo ./scripts/subdomain-manager.sh add \
+  --domain projects.example.com \
+  --type proxy \
+  --target http://127.0.0.1:3000 \
+  --ssl \
+  --email admin@example.com
+```
+
+Add a static/PHP site:
+
+```bash
+sudo ./scripts/subdomain-manager.sh add \
+  --domain blog.example.com \
+  --type static \
+  --docroot /var/www/blog.example.com/public_html \
+  --ssl \
+  --email admin@example.com
+```
+
+Add `--create-index` to create a placeholder `index.html` when the document
+root does not exist. Use `--no-ssl` to stay on HTTP.
+
+Delete a site:
+
+```bash
+sudo ./scripts/subdomain-manager.sh delete --domain projects.example.com
+```
+
+Delete without prompts, including certificate and logs:
+
+```bash
+sudo ./scripts/subdomain-manager.sh delete \
+  --domain projects.example.com \
+  --yes \
+  --delete-cert \
+  --delete-logs
+```
+
+The domain must be a subdomain FQDN with at least three labels, such as
+`app.example.com`. Apex domains must be managed manually or by your hosting
+panel.
+
+### Options
+
+| Option             | Command | Meaning                                                           |
+| ------------------ | ------- | ----------------------------------------------------------------- |
+| `--domain FQDN`    | add     | Domain to create                                                  |
+| `--type TYPE`      | add     | `proxy` (default), `static`, or `php` (alias for `static`)        |
+| `--target URL`     | add     | Loopback proxy target; default `http://127.0.0.1:3000`            |
+| `--docroot PATH`   | add     | Static document root; default `/var/www/FQDN/public_html`         |
+| `--email EMAIL`    | add     | Apache `ServerAdmin` and Certbot email                            |
+| `--ssl`            | add     | Obtain or reuse a certificate and redirect HTTP to HTTPS          |
+| `--no-ssl`         | add     | Configure HTTP only                                               |
+| `--create-index`   | add     | Create a placeholder `index.html` in a static docroot             |
+| `--domain FQDN`    | delete  | Domain to remove                                                  |
+| `--force`          | delete  | Allow unmarked vhosts or a certificate shared by multiple domains |
+| `--delete-cert`    | delete  | Delete the matching Let's Encrypt certificate                     |
+| `--delete-logs`    | delete  | Delete `/var/log/apache2/FQDN`                                    |
+| `--delete-docroot` | delete  | Delete the static docroot, restricted to paths under `/var/www`   |
+| `-y`, `--yes`      | both    | Skip confirmation; optional delete cleanup defaults to "no"       |
+
+### What add does
+
+1. Verifies root access, Apache, the site directories, DNS, and conflicts.
+2. Enables the required modules (`proxy`, `proxy_http`, `headers`, `ssl`,
+   `socache_shmcb`, `rewrite`).
+3. Writes `/etc/apache2/sites-available/<domain>.conf` with the marker.
+4. Runs `a2ensite`, `apachectl configtest`, and reloads Apache.
+5. With `--ssl`, runs `certbot certonly --apache`, writes its own
+   `<domain>-le-ssl.conf` so the proxy directives cannot be lost, rewrites the
+   HTTP vhost as a redirect, validates, and reloads again.
+6. Rolls back the new vhost if validation or reload fails.
+
+Proxy vhosts include `ProxyPreserveHost On`, `ProxyPass`/`ProxyPassReverse`,
+`X-Forwarded-Host`, `X-Forwarded-Proto`, and a 12 MiB `LimitRequestBody`.
+
+`certbot` renewals are handled by the system Certbot timer. The script uses
+`certonly`, so it does not hand the SSL vhost to Certbot's installer.
+
+### What delete does
+
+1. Finds vhosts whose `ServerName` matches the domain.
+2. Refuses unmarked configs unless `--force` is used.
+3. Backs up every config to
+   `/var/backups/beeprojects-subdomains/<domain>-delete-<timestamp>/`.
+4. Disables and removes the configs, validates, and reloads Apache.
+5. Restores the backup automatically if validation fails.
+6. Optionally deletes the certificate, logs, and static docroot.
+
+Deletion never removes `/opt/BeeProjects`, the SQLite database, uploads, or
+unrelated vhosts. It also refuses to delete `/opt/BeeProjects` as a document
+root and only deletes docroots under `/var/www` when explicitly requested. A
+certificate that covers multiple domains is not deleted unless `--force` is
+passed.
+
+### App environment
+
+After adding a proxy vhost, set the matching values in `/opt/BeeProjects/.env`
+and restart the app:
+
+```dotenv
+ORIGIN=https://projects.example.com
+
+PROTOCOL_HEADER=x-forwarded-proto
+HOST_HEADER=x-forwarded-host
+ADDRESS_HEADER=x-forwarded-for
+XFF_DEPTH=1
+BODY_SIZE_LIMIT=12M
+```
+
+`ORIGIN` must exactly match the public URL, including the scheme and without a
+trailing slash. The script prints the expected values and health-check URL.
+
+```bash
+sudo systemctl restart beeprojects
+curl http://127.0.0.1:3000/health
+```
+
+### Verify and troubleshoot
+
+```bash
+sudo apachectl configtest
+sudo apachectl -S
+curl -I https://projects.example.com
+curl https://projects.example.com/health
+sudo tail -f /var/log/apache2/projects.example.com/error.log
+```
+
+| Symptom                           | Check                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `502 Bad Gateway`                 | `curl http://127.0.0.1:3000/health`, `systemctl status beeprojects`      |
+| SSL issuance fails                | DNS A/AAAA record, port 80 reachable, `python3-certbot-apache` installed |
+| `AH00526`/config test fails       | Run `sudo apachectl configtest` and read the reported file and line      |
+| `403 Forbidden` on a static site  | Docroot permissions and the `<Directory>` block in the generated config  |
+| Domain already configured         | Disable the existing vhost or use its current `ServerName`/`ServerAlias` |
+| Caddy fails with `address in use` | Apache owns 80/443; stop/disable Caddy and use this script               |
+| Upload returns `413`              | `BODY_SIZE_LIMIT=12M` and Apache `LimitRequestBody` (`MAX_BODY_BYTES`)   |
+
+### Webmin
+
+The generated files are normal Apache site configs, so they appear under
+**Servers -> Apache Webserver**. Keep the marker line and the proxy directives
+if you edit them in Webmin. If the panel manages a vhost itself, use the
+panel's reverse-proxy feature instead and set the target to
+`http://127.0.0.1:3000`.
+
+### Backups and restore
+
+Every delete writes a timestamped directory under
+`/var/backups/beeprojects-subdomains/`. It contains the original config files
+and `manifest.tsv`, which maps backup names back to their original paths.
+
+To restore one manually:
+
+```bash
+sudo cp /var/backups/beeprojects-subdomains/<domain>-delete-<timestamp>/001-<domain>.conf \
+  /etc/apache2/sites-available/<domain>.conf
+sudo a2ensite <domain>
+sudo apachectl configtest
+sudo systemctl reload apache2
+```
+
+The script also writes an HTTP-config backup during SSL setup. Backups are
+kept indefinitely; remove old directories when you no longer need them.
 
 ## Backups
 
