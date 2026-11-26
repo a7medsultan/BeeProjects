@@ -688,6 +688,29 @@ BODY_SIZE_LIMIT=12M
 `ORIGIN` must exactly match the public URL, including the scheme and without a
 trailing slash. The script prints the expected values and health-check URL.
 
+If a form POST, such as sign-in, returns
+`{"message":"Cross-site POST form submissions are forbidden"}`, the browser's
+`Origin` header does not match `ORIGIN`. Check the address bar (scheme and
+`www`), then confirm the running process received the updated value:
+
+```bash
+grep -n '^ORIGIN=' /opt/BeeProjects/.env
+
+PID="$(sudo systemctl show -p MainPID --value beeprojects)"
+sudo cat "/proc/$PID/environ" | tr '\0' '\n' | grep -E '^(ORIGIN|PROTOCOL_HEADER|HOST_HEADER)='
+```
+
+After changing `.env`, restart and check again:
+
+```bash
+sudo systemctl restart beeprojects
+PID="$(sudo systemctl show -p MainPID --value beeprojects)"
+sudo cat "/proc/$PID/environ" | tr '\0' '\n' | grep '^ORIGIN='
+```
+
+The process environment must show the real public origin, for example
+`ORIGIN=https://projects.example.com`. Do not disable SvelteKit's CSRF check.
+
 ```bash
 sudo systemctl restart beeprojects
 curl http://127.0.0.1:3000/health
