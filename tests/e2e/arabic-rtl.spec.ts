@@ -75,9 +75,20 @@ test('Arabic locale and RTL layout across core screens', async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'الملف الشخصي' })).toBeVisible();
 	await expect(page.locator('#locale')).toHaveValue('ar');
 
-	// Switch back to English
-	await page.getByRole('button', { name: 'English' }).click();
-	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+	// Wait for Svelte hydration before interacting with the bound language select
+	await page.waitForFunction(() => {
+		const select = document.querySelector('#locale') as
+			(HTMLSelectElement & { __value?: unknown }) | null;
+		return select !== null && select.__value !== undefined;
+	});
+
+	// Saving the language in the profile persists it and reloads the page
+	await page.locator('#locale').selectOption('en');
+	await page.waitForTimeout(300);
+	await page
+		.locator('form[action="?/updateProfile"]')
+		.evaluate((form) => (form as HTMLFormElement).requestSubmit());
+	await expect(page.locator('html')).toHaveAttribute('lang', 'en', { timeout: 15_000 });
 	await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 	await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 });

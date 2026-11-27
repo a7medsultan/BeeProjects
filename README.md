@@ -231,6 +231,7 @@ The app ships with **English** (default) and **Arabic**:
 - Language switcher on the login page, app header, and profile page.
 - Logged-in preference is stored in `users.locale`.
 - Anonymous selection is stored in the `bp_locale` cookie.
+- Choosing a language on the login page is saved to the account at sign-in.
 - First-time visitors without a preference or cookie follow
   `Accept-Language`, falling back to English.
 - Arabic renders with `dir="rtl"` on `<html>` and a self-hosted Noto Sans
