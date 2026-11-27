@@ -65,7 +65,7 @@ test('Arabic locale and RTL layout across core screens', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/');
 	await page.getByRole('button', { name: 'فتح التنقل' }).click();
-	await expect(page.locator('aside')).toHaveClass(/translate-x-0/);
+	await expect(page.locator('aside')).toHaveClass(/is-open/);
 	const mobileAside = await page.locator('aside').boundingBox();
 	expect(mobileAside).not.toBeNull();
 	expect(mobileAside!.x).toBeGreaterThan(0);

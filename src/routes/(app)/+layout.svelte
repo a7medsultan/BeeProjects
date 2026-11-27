@@ -113,8 +113,8 @@
 	<!-- Sidebar -->
 	<aside
 		class={[
-			'app-sidebar fixed inset-y-0 start-0 z-40 w-64 border-e border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0',
-			sidebarOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
+			'app-sidebar fixed inset-y-0 start-0 z-40 w-64 border-e border-slate-200 bg-white lg:static',
+			sidebarOpen ? 'is-open' : ''
 		]}
 		aria-label={t('nav.mainNavigation')}
 	>

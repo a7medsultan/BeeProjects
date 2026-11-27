@@ -44,10 +44,22 @@ html[lang='ar'] :where(.tracking-tight, .tracking-wide, .tracking-wider, .tracki
 	unicode-bidi: isolate;
 }
 
-@media (min-width: 64rem) {
+.app-sidebar {
+	transition: transform 200ms ease;
+}
+
+@media (max-width: 63.999rem) {
 	.app-sidebar {
-		transform: none !important;
-		translate: none !important;
+		transform: translateX(-100%);
+	}
+
+	[dir='rtl'] .app-sidebar {
+		transform: translateX(100%);
+	}
+
+	[dir='rtl'] .app-sidebar.is-open,
+	.app-sidebar.is-open {
+		transform: translateX(0);
 	}
 }
 
