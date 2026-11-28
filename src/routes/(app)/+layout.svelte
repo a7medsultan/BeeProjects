@@ -113,7 +113,7 @@
 	<!-- Sidebar -->
 	<aside
 		class={[
-			'app-sidebar fixed inset-y-0 start-0 z-40 w-64 border-e border-slate-200 bg-white lg:static',
+			'app-sidebar fixed inset-y-0 start-0 z-40 flex w-64 flex-col border-e border-slate-200 bg-white lg:sticky lg:top-0 lg:h-screen',
 			sidebarOpen ? 'is-open' : ''
 		]}
 		aria-label={t('nav.mainNavigation')}
@@ -128,7 +128,7 @@
 			</span>
 		</div>
 
-		<nav class="space-y-1 p-3">
+		<nav class="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
 			{#each navigation as item (item.path)}
 				<a
 					href={item.href}
@@ -147,7 +147,7 @@
 			{/each}
 		</nav>
 
-		<div class="absolute inset-x-0 bottom-0 border-t border-slate-200 p-4">
+		<div class="mt-auto border-t border-slate-200 p-4">
 			{#if data.user}
 				<div class="flex items-center gap-3">
 					<div
